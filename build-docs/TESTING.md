@@ -714,3 +714,7 @@
 ## web-push (2026-11-19)
 - web-push.integration AC1–AC5: 5/5 (web-push stubbed); team-work 8/8. web-push.public.e2e AC6–AC7: 2/2; browser regression 21/21.
 - API unit 1118 pass (share-links needs .env, known); web unit 424/425 (password-rule, known). tsc api + web clean.
+
+## Draft loader + composer footer — 2026-11-20
+- Browser (Playwright, mocked API, draft request held open): overlay with LogoLoader and the stage label inside the prompt box at 1440 light/dark and 390; no "Draft in BNS" switch; credits meter beside Language, Draft document on the same row at 1440; no page errors.
+- web tsc clean; vitest 427/428 — the one failure (password-rule web/API mirror) fails identically on unchanged origin/main (CRLF checkout), unrelated.

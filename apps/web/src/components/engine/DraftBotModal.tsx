@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@lexdraft/ui';
+import { LogoLoader } from '@/components/brand/Logo';
 import type { IntakeState, IntakeAttachmentFile } from '@lexdraft/types';
 import {
   useDraftProgress,
@@ -230,7 +231,6 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
   const [saveFormat, setSaveFormat] = useState(true);
   const showToast = useUIStore((st) => st.showToast);
   const [language, setLanguage] = useState<DraftLang>('EN');
-  const [useBns, setUseBns] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState<DraftBoxAnswer | null>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
@@ -385,7 +385,6 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
     setFiles([]);
     setFormatIdx(null);
     setFormatTouched(false);
-    setUseBns(false);
     setError(null);
     setAnswer(null);
     setBriefCheck(null);
@@ -412,7 +411,6 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
     if (!brief) return;
     restoredText.current = brief.text;
     setPrompt((cur) => (cur.trim() ? cur : brief.text));
-    if (brief.bns) setUseBns(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restoreFrom?.matterId]);
 
@@ -423,8 +421,6 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
     setBriefCheck(null);
     setNeeds(null);
     const message = prompt.trim();
-    // A hint the engine folds into the brief so the model phrasing honours it.
-    const bnsNote = useBns ? BNS_NOTE : '';
 
     // When drafting FOR a case, lead the opening message with the case's
     // authoritative particulars + any notes, so the engine already knows the
@@ -432,7 +428,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
     // say WHAT to draft, not re-state the facts.
     const casePreamble = caseContext ? contextToBriefPreamble(caseContext) : '';
     const notesBlock = notesBlockFor(caseNotes);
-    const userPart = (message + bnsNote).trim();
+    const userPart = message;
     const opening = [casePreamble, notesBlock, userPart]
       .filter(Boolean)
       .join('\n\n')
@@ -768,7 +764,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
         </div>
         {formatPanel}
 
-        {/* Options row: language + BNS/BNSS */}
+        {/* Options row: language (drafts always follow BNS/BNSS/BSA; the engine maps old IPC/CrPC sections) */}
         <div className="draftbot-modal__options">
           <label className="draftbot-modal__field">
             <span className="draftbot-modal__field-label">Draft in</span>
@@ -780,10 +776,6 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
             >
               {DRAFT_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{draftLanguageLabel(l)}</option>)}
             </select>
-          </label>
-          <label className="draftbot-modal__check">
-            <input type="checkbox" checked={useBns} onChange={(e) => setUseBns(e.target.checked)} disabled={busy} />
-            Draft in BNS / BNSS (2023)
           </label>
         </div>
 
@@ -802,6 +794,9 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
   );
 
   const submitLabel = busy ? `${progress ?? 'Drafting'}…` : 'Submit';
+  const busyText = progress
+    ? `${progress}…`
+    : formatFile ? 'Reading your format, then drafting the full document in it…' : 'Reading the facts and drafting the full document…';
 
   if (inline) {
     // What makes a good brief, ticked off as the advocate types. With a matter
@@ -897,6 +892,15 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
             autoFocus={AUTOFOCUS_COMPOSER}
             aria-label="Describe the document and the facts"
           />
+          {busy && (
+            // The brand loader over the brief while the engine drafts, so the
+            // box never looks idle (owner, 2026-11-20).
+            <div className="dc-busy" role="status" aria-live="polite">
+              <LogoLoader size={64} />
+              <div className="dc-busy-label">{busyText}</div>
+              <div className="dc-busy-note">Keep this page open. Your draft opens here when it is ready.</div>
+            </div>
+          )}
           <div className="dc-input-bar">
             <input
               ref={fileRef}
@@ -980,13 +984,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
               {DRAFT_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{draftLanguageLabel(l)}</option>)}
             </select>
           </div>
-          <label className="dc-switch">
-            <input type="checkbox" checked={useBns} onChange={(e) => setUseBns(e.target.checked)} disabled={busy} />
-            <span className="dc-switch-track" aria-hidden><span /></span>
-            <span>
-              Draft in BNS / BNSS <span className="dc-switch-hint">(2023)</span>
-            </span>
-          </label>
+          {/* Credits sit where the BNS switch was; drafts always follow BNS/BNSS/BSA. */}
           <CreditMeter compact />
           <button type="submit" className="btn btn-primary btn-lg dc-submit" disabled={!canSubmit}
             title={`Uses credits by the draft's length: 1 credit for about 400 words${language === 'EN' ? '' : ', plus ½ for the translation'}. If your credits aren't enough, nothing is drafted or charged.`}>
@@ -994,13 +992,6 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
           </button>
         </div>
 
-        {busy && (
-          <div className="dc-progress" aria-live="polite">
-            {progress
-              ? `${progress}…`
-              : formatFile ? 'Reading your format, then drafting the full document in it…' : 'Reading the facts and drafting the full document…'}
-          </div>
-        )}
         {error && <p ref={errorRef} className="dc-error" role="alert">{error}</p>}
         <QuestionAnswerNote answer={answer} />
         {needs && (

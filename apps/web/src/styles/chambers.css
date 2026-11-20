@@ -777,6 +777,37 @@
   overflow: hidden;
 }
 [data-ui='chambers'] .dc-input:focus-within { border-color: var(--border-focus); box-shadow: var(--focus-ring); }
+/* While drafting: the brand loader sits over the brief (DraftBotModal .dc-busy). */
+[data-ui='chambers'] .dc-input { position: relative; }
+[data-ui='chambers'] .dc-input.is-busy { opacity: 1; }
+[data-ui='chambers'] .dc-busy {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  text-align: center;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-surface) 90%, transparent);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  border-radius: inherit;
+  animation: dc-busy-in 200ms ease-out both;
+}
+[data-ui='chambers'] .dc-busy-label { font-family: var(--font-title); font-size: 17px; font-weight: 600; max-width: 460px; }
+[data-ui='chambers'] .dc-busy-note { font-size: 12.5px; color: var(--text-tertiary); }
+@keyframes dc-busy-in { from { opacity: 0; } }
+/* Credits sit beside Language (where the BNS switch was) and shrink so
+   Draft document stays on the same row on desktop. */
+[data-ui='chambers'] .dc-footer .cm-meter--compact { flex: 1 1 120px; min-width: 0; }
+[data-ui='chambers'] .dc-footer .dc-lang { width: 168px; }
+[data-ui='chambers'] .dc-footer { gap: 14px; }
+[data-ui='chambers'] .dc-footer .cm-meter--compact .cm-meter-row span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (prefers-reduced-motion: reduce) { [data-ui='chambers'] .dc-busy { animation: none; } }
 [data-ui='chambers'] .dc-textarea { font-size: 15.5px; padding: 18px 20px; min-height: 180px; }
 [data-ui='chambers'] .dc-input-bar { background: var(--bg-base); border-top-color: var(--border-subtle); padding: 8px 12px; }
 [data-ui='chambers'] .dc-starter { border-radius: 999px; }
