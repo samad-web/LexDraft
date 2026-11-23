@@ -1,6 +1,6 @@
 # Save as case note (save-as-case-note)
 
-**Status:** BUILT 2026-11-23 (owner: "yes proceed"). Not deployed; no migration.
+**Status:** LIVE 2026-11-23 (70527fb; owner: "yes proceed"). No migration.
 
 ## Purpose
 An advocate editing a document (their own, or a DifAi draft) wants to keep its text as a note on one or more cases. Today notes accept an upload or typed text, but there is no one-tap way from the editor, and old .doc files are refused.

@@ -1,5 +1,7 @@
 # Changelog
-- Save as case note (2026-11-23, owner): Draft page "Save as case note" saves the document's text as a separate note in each chosen case, Shared or Only me (existing POST /case-notes, no migration); Case Notes upload accepts .doc (LibreOffice -> mammoth in text-extraction). features/save-as-case-note.md. Not deployed.
+- DEPLOYED 2026-11-23 07:42 UTC (70527fb, api + web; no migration, engine untouched): save as case note. Backup pre-deploy-20261123-073923.dump; rollback lexdraft-api/web:prev-20261123-073923. Smoke: ready db ok, site 200, sign-in 400, case-notes 401 signed out, Google client id + "Save as case note" in build, msword in api.
+
+- Save as case note (2026-11-23, owner): Draft page "Save as case note" saves the document's text as a separate note in each chosen case, Shared or Only me (existing POST /case-notes, no migration); Case Notes upload accepts .doc (LibreOffice -> mammoth in text-extraction). features/save-as-case-note.md.
 
 - DEPLOYED 2026-11-23 07:02 UTC (e22a280, api + web + engine; 0122 applied with owner OK): open and edit your own document. Backup pre-0122-20261123-065249.dump; rollback lexdraft-api/web/engine:prev-20261123-065249. Smoke: ready db ok, site 200, sign-in 400, document/open + edited-file 401 signed out, live read-docx ok, Google client id + "Open a document" in build.
 
