@@ -81,13 +81,11 @@ def _extract_blocks(docx_path) -> List[Dict[str, str]]:
     # editor can show the document as it prints — centred bold headings, right-
     # aligned signature lines — instead of a column of plain text.
     from docx import Document
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
-    names = {WD_ALIGN_PARAGRAPH.CENTER: "center", WD_ALIGN_PARAGRAPH.RIGHT: "right",
-             WD_ALIGN_PARAGRAPH.JUSTIFY: "justify"}
-    from .tables import body_items, row_text, row_values
+    from .tables import body_items, paragraph_align, row_text, row_values
     blocks: List[Dict[str, Any]] = []
     i = 0
-    for p in body_items(Document(str(docx_path))):
+    src = docx_path if hasattr(docx_path, "read") else str(docx_path)
+    for p in body_items(Document(src)):
         if not hasattr(p, "runs"):  # a table: one "| a | b |" line per row
             for r, row in enumerate(p.rows):
                 values = row_values(row)
@@ -98,17 +96,15 @@ def _extract_blocks(docx_path) -> List[Dict[str, str]]:
                     blocks.append(block)
                 i += 1
             continue
-        align = p.alignment
-        if align is None and p.style is not None:
-            align = p.style.paragraph_format.alignment
+        align = paragraph_align(p)
         runs = [r for r in p.runs if r.text.strip()]
         bold = bool(runs) and all(
             r.bold or (r.bold is None and p.style is not None and p.style.font.bold) for r in runs)
         for line in p.text.rstrip().split("\n"):
             if line.strip():
                 block: Dict[str, Any] = {"key": f"p{i}", "text": line.rstrip()}
-                if align in names:
-                    block["align"] = names[align]
+                if align:
+                    block["align"] = align
                 if bold:
                     block["bold"] = True
                 blocks.append(block)
@@ -708,6 +704,47 @@ async def apply_text_edits(body: Dict[str, Any],
     if out is None:
         return {"matched": False}
     return {"matched": True, "docx_base64": base64.b64encode(out).decode("ascii")}
+
+
+MAX_USER_DOCX_BYTES = 12 * 1024 * 1024
+MAX_USER_DOCX_BLOCKS = 5000
+
+
+@app.post("/v1/read-docx")
+async def read_user_docx(body: Dict[str, Any],
+                         authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """An advocate's own .docx as editable blocks + warnings (import-edit-document).
+    Read only: no tidy, no renumbering — the file is theirs. Edits come back
+    through /v1/apply-edits like any engine draft."""
+    _check_token(authorization)
+    from docx import Document
+    from .user_docx import check_docx, docx_warnings
+    raw = body.get("docx_base64")
+    if not isinstance(raw, str) or len(raw) > MAX_USER_DOCX_BYTES * 4 // 3 + 4:
+        raise HTTPException(status_code=422, detail={"error": "too_large" if isinstance(raw, str) else "validation"})
+    try:
+        src = base64.b64decode(raw, validate=True)
+    except ValueError:
+        raise HTTPException(status_code=422, detail={"error": "validation"})
+    code = check_docx(src)
+    if code:
+        raise HTTPException(status_code=422, detail={"error": code})
+
+    def _read() -> Tuple[List[Dict[str, Any]], List[str]]:
+        doc = Document(io.BytesIO(src))
+        return _extract_blocks(io.BytesIO(src)), docx_warnings(doc)
+
+    try:
+        blocks, warnings = await run_in_threadpool(_read)
+    except Exception:  # corrupt XML inside a valid zip
+        raise HTTPException(status_code=422, detail={"error": "not_docx"})
+    if "tracked_changes" in warnings:
+        raise HTTPException(status_code=422, detail={"error": "tracked_changes"})
+    if not blocks:
+        raise HTTPException(status_code=422, detail={"error": "empty"})
+    if len(blocks) > MAX_USER_DOCX_BLOCKS:
+        raise HTTPException(status_code=422, detail={"error": "too_long"})
+    return {"blocks": blocks, "warnings": warnings}
 
 
 @app.post("/v1/splice-lines")

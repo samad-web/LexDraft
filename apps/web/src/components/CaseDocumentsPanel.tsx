@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Icon, EmptyState } from '@lexdraft/ui';
 import type { DocumentRecord } from '@lexdraft/types';
 import { useDocuments, useDeleteDocument } from '@/hooks/useDocuments';
+import { useDeleteDraft } from '@/hooks/useDrafts';
+import { canEditInDifai } from '@/lib/imported-docs';
 import { useUIStore } from '@/store/ui';
 import { DocumentViewerModal } from './DocumentViewerModal';
 import { NewDocumentModal } from './NewDocumentModal';
@@ -47,6 +50,8 @@ function bucketOf(doc: DocumentRecord): Bucket {
 export function CaseDocumentsPanel({ matterTitle }: Props) {
   const { data: allDocs = [], isLoading } = useDocuments();
   const deleteDocument = useDeleteDocument();
+  const deleteDraft = useDeleteDraft();
+  const navigate = useNavigate();
   const showToast = useUIStore((s) => s.showToast);
   const [filter, setFilter] = useState<Bucket>('all');
   const [viewing, setViewing] = useState<DocumentRecord | null>(null);
@@ -58,12 +63,14 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
   const handleDelete = (doc: DocumentRecord) => {
     if (!doc.id) return;
     const ok = window.confirm(
-      `Delete "${doc.name}"? This removes the document and its file. This can't be undone.`,
+      `Delete "${doc.name}"? This removes the document and its file${doc.draftId ? ', and its editable draft' : ''}. This can't be undone.`,
     );
     if (!ok) return;
     setDeletingId(doc.id);
     deleteDocument.mutate(doc.id, {
       onSuccess: () => {
+        // an imported document's edited copy: its draft goes with it
+        if (doc.draftId) deleteDraft.mutate(doc.draftId);
         setDeletingId(null);
         if (viewing?.id === doc.id) setViewing(null);
         showToast({ type: 'sage', text: `Deleted "${doc.name}"` });
@@ -220,6 +227,19 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
               </span>
             )}
             <span className="cs-doc-date">{doc.updated}</span>
+            {doc.id && (doc.draftId || canEditInDifai(doc)) && (
+              <Gate feature="drafting.basic">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => navigate('/app/draft', { state: doc.draftId ? { draftId: doc.draftId } : { openDocumentId: doc.id } })}
+                  title={doc.draftId ? 'Edit this document' : 'Open this file in the DifAi editor (your file is kept as it is)'}
+                  aria-label={`${doc.draftId ? 'Edit' : 'Edit in DifAi'}: ${doc.name}`}
+                >
+                  <Icon name="edit" size={14} /> {doc.draftId ? 'Edit' : 'Edit in DifAi'}
+                </button>
+              </Gate>
+            )}
             {doc.id ? (
               <button
                 type="button"

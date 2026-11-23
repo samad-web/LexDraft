@@ -1,4 +1,13 @@
 # Testing
+## Open and edit your own document — 2026-11-23
+- Engine: tests/service/test_user_docx.py 17/17 (read-docx layout + warnings; refusals: not docx, password/OLE, macro, zip bomb, tracked changes, empty, bad base64; added/deleted paragraphs keep header, footer, margins, logo, neighbour font + indent; table row clone; heading -> body format; unrelated text refused; same-count path unchanged; w:jc start/end). test_apply_edits.py: `test_added_paragraph_falls_back` replaced by `test_added_paragraph_is_written_into_the_docx` (the rule changed by owner approval, so the old assertion was wrong, not the code).
+- API: services/__tests__/imported-documents.service.test.ts 19/19 + routes/__tests__/documents-list-imported.test.ts 3/3 (AC2-AC6, AC9: one edited row after 5 saves, original never changed, Option A copies are independent, rollback on failure, other firm 404).
+- Web: lib/__tests__/imported-docs.test.ts 3/3 (every refusal worded, warnings, Edit in DifAi only on Word/PDF files).
+- Local end-to-end (real local PG16 + worktree engine + LibreOffice + storage, with and without a temp FIELD_ENCRYPTION_KEY; existing test@ account, 2 temp cases; everything deleted after): 15/15 — docx/.doc/PDF open, original filed + encrypted + unchanged, edited copy in the case, 1 row after 4 saves, list shows original + edited (no draft row), copy to case 2 independent, bad file stores nothing. Edited .docx inspected: header, footer, margin, logo, table kept; added paragraph has Times 14 + indent.
+  - **Failure found and fixed:** a .doc converted by LibreOffice failed to open (`WD_PARAGRAPH_ALIGNMENT has no XML mapping for 'start'`). Root cause: python-docx can't read `w:jc="start"/"end"`. Fix: read alignment from XML (tables.paragraph_align) in _extract_blocks and apply_edits.
+- Full suites: engine 2204 pass; API 100/100 files, 1184 pass / 4 skipped; web 432/434 — the 2 failures are environmental and also fail without this change: password-rule CRLF mirror (pre-existing) and share-link base URL (only with a local apps/web/.env present; passes without it). tsc clean api + web; vite build ok.
+- Not run: signed-in browser E2E (no local E2E account; owner rule: never create one). UI checked by tsc, unit tests and build only.
+
 ## Daily brief — 2026-11-20
 - Unit daily-brief.test.ts 9/9 (compose, quiet day, cap at 3, IST dates, watchdog window). Integration daily-brief.integration.test.ts 5/5 (AC1-AC5) on local PG16; reminders.integration 4/4 (old AC3 moved to the brief).
 - notificationsStore.create gained `repeat`; default unchanged, covered by the full suites below.

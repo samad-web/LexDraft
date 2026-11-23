@@ -1,4 +1,6 @@
 # Changelog
+- Open and edit your own document (2026-11-23, owner; Option A): Draft page "Open a document" (.docx, .doc, PDF as text) for a case or no case; Case/Documents "Edit in DifAi"; the original is kept untouched as "<name> (original)" and the edited Word copy is filed in Documents (one row, replaced each save, firm-visible, shareable); "Copy to another case" makes an independent copy. Engine: /v1/read-docx, apply-edits handles added/deleted paragraphs, start/end alignment fix. Migration 0122 (drafts.source_document_id, edited_document_id; local only). features/import-edit-document.md. Not deployed.
+
 - DEPLOYED 2026-11-20 10:25 UTC (7448960, api + web; 0121 applied): daily brief. Backup pre-0121-20261120-102152.dump; rollback lexdraft-api/web:prev-20261120-102152. Smoke: ready db ok, site 200, sign-in 400, /notifications/brief 401 signed out, brief.morning 07:00 IST scheduled, Google client id in build.
 
 - DEPLOYED 2026-11-20 09:30 UTC (e065f51, api + web; 0120 applied): reminders + Android push plumbing + c7412fd activation funnel. Backup pre-0120-20261120-092345.dump; rollback lexdraft-api/web:prev-20261120-092345. FCM not configured yet.

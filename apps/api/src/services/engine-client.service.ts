@@ -416,8 +416,18 @@ export const engineClient = {
     return json?.forms ?? [];
   },
 
-  /** Write edited paragraphs back into an engine .docx (keeps the court layout).
-   *  null when paragraphs were added/removed — the caller falls back. */
+  /** An advocate's own .docx as editable blocks + warnings (no model). A refusal
+   *  comes back as `{ error }` (not_docx, encrypted_or_doc, macro, too_large,
+   *  tracked_changes, empty, too_long). */
+  async readDocx(docxBase64: string): Promise<{ blocks: EngineBlock[]; warnings: string[] } | { error: string }> {
+    const { status, json } = await call('POST', '/v1/read-docx', { docx_base64: docxBase64 });
+    if (status === 422) return { error: String(json?.detail?.error ?? 'not_docx') };
+    if (status !== 200) throw new EngineError(`read-docx failed: ${status}`);
+    return { blocks: json.blocks ?? [], warnings: json.warnings ?? [] };
+  },
+
+  /** Write edited paragraphs back into a .docx (keeps its layout), paragraphs
+   *  added/removed included. null when the edit can't be mapped — the caller falls back. */
   async applyEdits(docxBase64: string, paragraphs: string[]): Promise<string | null> {
     const { status, json } = await call('POST', '/v1/apply-edits', { docx_base64: docxBase64, paragraphs });
     if (status !== 200) throw new EngineError(`apply-edits failed: ${status}`);

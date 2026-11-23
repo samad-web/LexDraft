@@ -1,7 +1,7 @@
 import { Router, raw } from 'express';
 import { z } from 'zod';
 import crypto from 'node:crypto';
-import type { DocumentRecord } from '@lexdraft/types';
+import type { DocumentRecord, SavedDraft } from '@lexdraft/types';
 import { documentsService } from '../services/documents.service';
 import { draftsService } from '../services/drafts.service';
 import { firmIdForUser } from '../services/tenant';
@@ -76,7 +76,23 @@ documentsRouter.get('/', requireFeature('shared.documents'), async (req, res, ne
       documentsService.list(firmId),
       userId ? draftsService.list({ userId }) : Promise.resolve([]),
     ]);
-    const draftDocs: DocumentRecord[] = drafts.map((d) => ({
+    res.json({ items: listWithDrafts(docs, drafts) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** The Documents list: the firm's files + the caller's own drafts. An imported
+ *  draft's edited Word copy is a real file row (import-edit-document), so that
+ *  row is listed — carrying `draftId` so Edit opens the draft — instead of a
+ *  second, file-less "draft" row. */
+export function listWithDrafts(docs: DocumentRecord[], drafts: SavedDraft[]): DocumentRecord[] {
+  const draftByEdited = new Map(drafts.filter((d) => d.editedDocumentId).map((d) => [d.editedDocumentId!, d.id]));
+  const docIds = new Set(docs.map((d) => d.id));
+  const listed = docs.map((d) => (d.id && draftByEdited.has(d.id) ? { ...d, draftId: draftByEdited.get(d.id)! } : d));
+  const draftDocs: DocumentRecord[] = drafts
+    .filter((d) => !d.editedDocumentId || !docIds.has(d.editedDocumentId))
+    .map((d) => ({
       id: d.id,
       name: d.title,
       type: d.docType,
@@ -86,11 +102,8 @@ documentsRouter.get('/', requireFeature('shared.documents'), async (req, res, ne
       updated: relativeFromIso(d.updatedAt),
       kind: 'draft',
     }));
-    res.json({ items: [...draftDocs, ...docs] });
-  } catch (err) {
-    next(err);
-  }
-});
+  return [...draftDocs, ...listed];
+}
 
 function strParam(v: unknown): string {
   return typeof v === 'string' ? v : '';

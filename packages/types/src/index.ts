@@ -118,6 +118,8 @@ export interface DocumentRecord {
   /** Distinguishes uploaded physical documents from in-app drafts so the
    *  viewer can pick the right preview path. Optional for backwards-compat. */
   kind?: 'document' | 'draft';
+  /** An edited Word copy of the viewer's own imported draft: Edit opens this draft. */
+  draftId?: ID;
   /** True when an uploaded file is attached. Set by the list endpoint so the
    *  table can show a file icon without paying the cost of the base64 blob. */
   hasFile?: boolean;
@@ -921,6 +923,10 @@ export interface SavedDraft {
   draftDate: string | null;
   /** Matter (case title) this draft is filed against, '' if unfiled. */
   matter?: string;
+  /** import-edit-document: the advocate's own uploaded file (never changed). */
+  sourceDocumentId?: string | null;
+  /** import-edit-document: the Documents row holding the edited Word copy. */
+  editedDocumentId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -936,6 +942,8 @@ export interface SaveDraftRequest {
   draftDate?: string;
   /** Matter (case title) to file this draft against. */
   matter?: string;
+  /** import-edit-document: the uploaded original this draft was opened from. */
+  sourceDocumentId?: string;
 }
 
 export interface ResearchAnswer {

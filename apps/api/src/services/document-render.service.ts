@@ -195,20 +195,26 @@ function withConvertLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function convertDocxToPdf(docx: Buffer): Promise<Buffer> {
-  return withConvertLock(() => _convertDocxToPdfInner(docx));
+  return withConvertLock(() => _convertInner(docx, 'docx', 'pdf'));
 }
 
-async function _convertDocxToPdfInner(docx: Buffer): Promise<Buffer> {
+/** An old Word .doc -> .docx (import-edit-document). Same bounds as the PDF render;
+ *  convert only, macros never run. Throws on any failure. */
+export async function convertDocToDocx(doc: Buffer): Promise<Buffer> {
+  return withConvertLock(() => _convertInner(doc, 'doc', 'docx'));
+}
+
+async function _convertInner(input: Buffer, from: 'docx' | 'doc', to: 'pdf' | 'docx'): Promise<Buffer> {
   // Per-conversion working dir for the input/output only; the LibreOffice user
   // PROFILE is the shared warm one (WARM_PROFILE_DIR), created once.
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lexdraft-render-'));
-  const inPath = path.join(workDir, 'in.docx');
+  const inPath = path.join(workDir, `in.${from}`);
   try {
     if (!_warmProfileReady) {
       _warmProfileReady = fs.mkdir(WARM_PROFILE_DIR, { recursive: true }).then(() => undefined);
     }
     await _warmProfileReady;
-    await fs.writeFile(inPath, docx);
+    await fs.writeFile(inPath, input);
 
     // file:// URL for the WARM profile — LibreOffice wants a URL, not a path.
     // On Windows an absolute path starts with a drive letter ("C:\..."), so the
@@ -225,7 +231,7 @@ async function _convertDocxToPdfInner(docx: Buffer): Promise<Buffer> {
       '--nofirststartwizard',
       `-env:UserInstallation=${profileUrl}`,
       '--convert-to',
-      'pdf',
+      to,
       '--outdir',
       workDir,
       inPath,
@@ -241,12 +247,11 @@ async function _convertDocxToPdfInner(docx: Buffer): Promise<Buffer> {
     if (code !== 0) {
       throw new Error(`soffice exited ${code}: ${stderr.slice(0, 500)}`);
     }
-    const outPath = path.join(workDir, 'in.pdf');
-    const pdf = await fs.readFile(outPath).catch(() => null);
-    if (!pdf || pdf.length === 0) {
-      throw new Error('soffice produced no PDF output');
+    const out = await fs.readFile(path.join(workDir, `in.${to}`)).catch(() => null);
+    if (!out || out.length === 0) {
+      throw new Error(`soffice produced no ${to === 'pdf' ? 'PDF' : to} output`);
     }
-    return pdf;
+    return out;
   } finally {
     // soffice leaves the profile + intermediate files; remove the whole work dir.
     await fs.rm(workDir, { recursive: true, force: true }).catch((err) => {

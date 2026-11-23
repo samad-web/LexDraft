@@ -38,6 +38,12 @@ import { ComposeStatusNotice } from '@/components/ComposeStatusNotice';
 import { LawSidePanel } from '@/components/LawSidePanel';
 import type { BlankForm } from '@/hooks/useFormatLibrary';
 import { MyDraftsModal } from '@/components/MyDraftsModal';
+import { OpenDocumentModal } from '@/components/OpenDocumentModal';
+import { CopyToCaseModal } from '@/components/CopyToCaseModal';
+import { useCases } from '@/hooks/useCases';
+import { useMoveDraftToCase, useSaveEditedFile, type OpenedDocument } from '@/hooks/useImportedDocs';
+import { importErrorText, importWarnings } from '@/lib/imported-docs';
+import { caseToContext } from '@/lib/draft-case-context';
 import { FormatPickerModal } from '@/components/FormatPickerModal';
 import { LetterheadPicker } from '@/components/letterhead/LetterheadPicker';
 import { exportPdf, exportDocx, renderPdfBlob } from '@/lib/export-doc';
@@ -287,7 +293,7 @@ export function DraftingView() {
   const location = useLocation();
   const navigate = useNavigate();
   const navState = location.state as
-    | { caseContext?: CaseContext; researchCitation?: ResearchCitation; draftId?: string }
+    | { caseContext?: CaseContext; researchCitation?: ResearchCitation; draftId?: string; openDocumentId?: string }
     | null;
 
   // DraftBot-style one-shot modal: content in → document out, no fact sheet.
@@ -297,6 +303,11 @@ export function DraftingView() {
   const [draftBotOpen, setDraftBotOpen] = useState<boolean>(!!navState?.caseContext);
   const [myDraftsOpen, setMyDraftsOpen] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  // import-edit-document: the draft on screen is the advocate's OWN file. Its
+  // original stays untouched; each save files the edited Word copy into Documents.
+  const [imported, setImported] = useState<{ sourceDocumentId: string; matter: string } | null>(null);
+  const [openDocOpen, setOpenDocOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   // The engine-rendered .docx (base64) for the CURRENT engine draft, if any. This is
   // the FILING-grade copy (real Word file, selectable text, correct margins) the
   // engine produced — distinct from the rasterised client-side "working copy" export.
@@ -507,7 +518,7 @@ export function DraftingView() {
           .map((s) => `${s.citation} (${s.offenceName}, counsel to confirm)`),
       }),
     );
-    stream.reset();
+    stream.reset(); setImported(null);
     skipResetOnSeedRef.current = true;
     stream.seed({ docType: detected, text: body, generatedAt: new Date().toISOString() });
     setStageMode(true);
@@ -584,7 +595,7 @@ export function DraftingView() {
     setOpenItems(collectOpenItems({ bodyText: body, ...(s.draftNotes?.length ? { advisories: s.draftNotes } : {}) }));
     // BNS/BNSS/BSA conversions applied to this draft (legacy → in-force sections).
     setBnsConcordance(s.bnsConcordance ?? []);
-    stream.reset();
+    stream.reset(); setImported(null);
     skipResetOnSeedRef.current = true;
     stream.seed({ docType: detected, text: body, generatedAt: new Date().toISOString() });
     setStageMode(true);
@@ -605,6 +616,59 @@ export function DraftingView() {
     }
   };
 
+  const allCases = useCases();
+  const saveEditedFile = useSaveEditedFile();
+  const moveDraft = useMoveDraftToCase();
+
+  // "Open a document" / "Edit in DifAi": the advocate's own file in the editor,
+  // laid out as it prints. Like a blank form: no intake behind it; downloads write
+  // the edits back into their own .docx.
+  const openDocumentInEditor = (doc: OpenedDocument) => {
+    const body = doc.blocks.map((b) => b.text).join('\n\n');
+    setEngineSession(null);
+    setDocType(doc.title);
+    setActiveEngineLabel(doc.title);
+    setEngineDocxBase64(doc.docxBase64);
+    setCompanionDoc(null);
+    setCurrentDraftId(null);
+    setBnsConcordance([]);
+    setOpenItems(collectOpenItems({ bodyText: body }));
+    stream.reset(); setImported(null);
+    skipResetOnSeedRef.current = true;
+    stream.seed({ docType: doc.title, text: body, generatedAt: new Date().toISOString() });
+    setStageMode(true);
+    setError(null);
+    const html = blocksToHtml(doc.blocks);
+    setEngineView({ text: body, html });
+    setEditedHtml(html);
+    setIsEditing(true);
+    setImported({ sourceDocumentId: doc.sourceDocumentId, matter: doc.matter });
+    loadingDraftRef.current = null;
+    const c = doc.matter ? (allCases.data ?? []).find((x) => x.title === doc.matter) : undefined;
+    selectDraftCase(c ? caseToContext(c as Parameters<typeof caseToContext>[0]) : null);
+    const notes = importWarnings(doc.warnings);
+    showToast({
+      type: notes.length ? 'amber' : 'sage',
+      text: notes.length ? `${doc.title} is open. ${notes.join(' ')}` : `${doc.title} is open. Edit it, then save.`,
+    });
+  };
+
+  // Case -> Documents "Edit in DifAi" arrives with state.openDocumentId.
+  const openedDocIdRef = useRef<string | null>(null);
+  // The saved draft whose original is being fetched: a late answer for a draft
+  // the advocate has already left is dropped.
+  const loadingDraftRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = navState?.openDocumentId;
+    if (!id || openedDocIdRef.current === id) return;
+    openedDocIdRef.current = id;
+    navigate(location.pathname, { replace: true, state: null });
+    api.post<OpenedDocument>('/drafting/document/open', { documentId: id })
+      .then(openDocumentInEditor)
+      .catch((e: Error) => showToast({ type: 'amber', text: importErrorText(e.message) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navState?.openDocumentId]);
+
   // A format's BLANK form, opened in the editor (forms library "Word"): the
   // advocate fills it in by hand, then downloads Word / PDF from the Export card.
   // No intake behind it, so no live Missing-details panel.
@@ -622,7 +686,7 @@ export function DraftingView() {
     setCurrentDraftId(null);
     setBnsConcordance([]);
     setOpenItems(collectOpenItems({ bodyText: body }));
-    stream.reset();
+    stream.reset(); setImported(null);
     skipResetOnSeedRef.current = true;
     stream.seed({ docType: title, text: body, generatedAt: new Date().toISOString() });
     setStageMode(true);
@@ -725,7 +789,7 @@ export function DraftingView() {
   const reset = () => {
     setBriefOpen(false);
     setAllValues((av) => ({ ...av, [docType]: {} }));
-    stream.reset();
+    stream.reset(); setImported(null);
     setError(null);
     setCurrentDraftId(null);
     setEditedHtml(null);
@@ -1095,12 +1159,20 @@ export function DraftingView() {
           draftDate,
           // File the draft against the attached matter (if any) so it appears
           // in that case's Documents tab, not just the global "My drafts".
-          ...(draftCase ? { matter: draftCase.title } : {}),
+          ...(draftCase ? { matter: draftCase.title } : imported?.matter ? { matter: imported.matter } : {}),
+          ...(imported && !currentDraftId && imported.sourceDocumentId ? { sourceDocumentId: imported.sourceDocumentId } : {}),
         },
       },
       {
         onSuccess: (saved) => {
           setCurrentDraftId(saved.id);
+          if (imported) {
+            // The advocate's own file: its edited Word copy goes into Documents
+            // instead of the engine-draft filing below (which would add the
+            // unedited original again on every save).
+            void fileImportedCopy(saved.id);
+            return;
+          }
           showToast({ type: 'sage', text: currentDraftId ? 'Draft updated' : 'Draft saved' });
           // Also file the filing-grade engine .docx into the CASE's Documents
           // section (the `documents` table, keyed by case_label) so a generated
@@ -1114,6 +1186,24 @@ export function DraftingView() {
         },
       },
     );
+  };
+
+  /** import-edit-document: after a save, the edited Word copy into Documents
+   *  (one row per draft, replaced each time). A case picked since it was opened
+   *  ("Add to a case") moves the draft, its edited copy and an unfiled original. */
+  const fileImportedCopy = async (draftId: string) => {
+    if (!imported) return;
+    const target = draftCase?.title ?? imported.matter;
+    try {
+      if (target && target !== imported.matter) {
+        await moveDraft.mutateAsync({ draftId, matter: target });
+        setImported({ ...imported, matter: target });
+      }
+      await saveEditedFile.mutateAsync({ draftId, paragraphs: editedParagraphs(displayHtml) });
+      showToast({ type: 'sage', text: target ? `Saved. The Word file is in ${target}'s Documents.` : 'Saved. The Word file is in Documents.' });
+    } catch {
+      showToast({ type: 'amber', text: 'Saved the draft, but couldn\'t update its Word file in Documents. Save again to retry.' });
+    }
   };
 
   /** File the engine's filing-grade .docx (the complaint, and its companion
@@ -1176,17 +1266,30 @@ export function DraftingView() {
     setIsEditing(false);
     setCurrentDraftId(d.id);
     setEngineSession(null); // a saved draft has no live intake behind it
+    setEngineDocxBase64(null); // never the previous draft's Word file
+    loadingDraftRef.current = d.id;
     setMyDraftsOpen(false);
     setStageMode(true);
     // Seed the stream display with the saved body so the preview renders
     // immediately without needing a re-generation.
-    stream.reset();
+    stream.reset(); setImported(null);
     skipResetOnSeedRef.current = true;
     stream.seed({
       docType: d.docType,
       text: d.bodyText,
       generatedAt: d.updatedAt,
     });
+    if (d.sourceDocumentId || d.editedDocumentId) {
+      setImported({ sourceDocumentId: d.sourceDocumentId ?? '', matter: d.matter ?? '' });
+      // Downloads write into the advocate's own .docx again (best-effort: without
+      // it the editor still works and the generic export is used).
+      if (d.sourceDocumentId) {
+        loadingDraftRef.current = d.id;
+        api.post<OpenedDocument>('/drafting/document/open', { documentId: d.sourceDocumentId })
+          .then((o) => { if (loadingDraftRef.current === d.id) setEngineDocxBase64(o.docxBase64); })
+          .catch(() => {});
+      }
+    }
     showToast({ type: 'sage', text: `Loaded: ${d.title}` });
   };
 
@@ -1455,6 +1558,18 @@ export function DraftingView() {
             onClick={() => setMyDraftsOpen(true)}
           >
             <Icon name="documents" size={14} /> My drafts
+          </button>
+          <button
+            className="btn"
+            type="button"
+            onClick={() => {
+              // Ask BEFORE the upload: cancelling afterwards would leave the file filed.
+              if ((hasOutput || stageMode) && !window.confirm('Open a document? The draft on screen will be closed (save it to My drafts first if you need it).')) return;
+              setOpenDocOpen(true);
+            }}
+            title="Open a Word or PDF file you drafted outside DifAi and edit it here"
+          >
+            <Icon name="upload" size={14} /> Open a document
           </button>
           <button
             className="btn"
@@ -1848,7 +1963,7 @@ export function DraftingView() {
                         .map((s) => `${s.citation} (${s.offenceName}, counsel to confirm)`),
                     }),
                   );
-                  stream.reset();
+                  stream.reset(); setImported(null);
                   skipResetOnSeedRef.current = true;
                   stream.seed({
                     docType,
@@ -2087,6 +2202,14 @@ export function DraftingView() {
                   <button className="btn btn-sm" type="button" onClick={handleSave} disabled={saveMutation.isPending}>
                     <Icon name="check" size={13} /> {saveMutation.isPending ? 'Saving…' : currentDraftId ? 'Update draft' : 'Save draft'}
                   </button>
+                  {currentDraftId && (
+                    <button
+                      className="btn btn-sm btn-ghost" type="button" onClick={() => setCopyOpen(true)}
+                      title="A separate copy for another client's case; changes to one never change the other"
+                    >
+                      <Icon name="documents" size={13} /> Copy to another case
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -2791,6 +2914,21 @@ export function DraftingView() {
         onLoad={handleLoadDraft}
         currentDraftId={currentDraftId}
       />
+
+      <OpenDocumentModal
+        open={openDocOpen}
+        onClose={() => setOpenDocOpen(false)}
+        defaultCase={draftCase?.title ?? ''}
+        onOpened={openDocumentInEditor}
+      />
+      {currentDraftId && (
+        <CopyToCaseModal
+          open={copyOpen}
+          onClose={() => setCopyOpen(false)}
+          draftId={currentDraftId}
+          currentCase={draftCase?.title ?? imported?.matter ?? ''}
+        />
+      )}
 
       {/* Choose WHICH engine format to draft — the full engine catalogue (DPC
           pleadings/deeds + TN court forms). Picking one sets the document type,

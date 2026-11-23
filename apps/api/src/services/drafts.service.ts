@@ -14,6 +14,8 @@ interface Row {
   body_text: string;
   draft_date: string | Date | null;
   matter: string | null;
+  source_document_id?: string | null;
+  edited_document_id?: string | null;
   created_at: string | Date;
   updated_at: string | Date;
 }
@@ -44,6 +46,8 @@ function fromRow(r: Row): SavedDraft {
     bodyText: r.body_text,
     draftDate: toDateOnly(r.draft_date),
     matter: r.matter ?? '',
+    sourceDocumentId: r.source_document_id ?? null,
+    editedDocumentId: r.edited_document_id ?? null,
     createdAt: toIso(r.created_at),
     updatedAt: toIso(r.updated_at),
   };
@@ -73,7 +77,7 @@ export const draftsService = {
     }
     const rows = await sql<Row[]>`
       select id, title, doc_type, language, tone, fields_json, edited_html,
-             body_text, draft_date, matter, created_at, updated_at
+             body_text, draft_date, matter, source_document_id, edited_document_id, created_at, updated_at
       from drafts
       where user_id = ${ctx.userId}
       order by updated_at desc
@@ -87,7 +91,7 @@ export const draftsService = {
     if (!sql) return memory.get(id) ?? null;
     const rows = await sql<Row[]>`
       select id, title, doc_type, language, tone, fields_json, edited_html,
-             body_text, draft_date, matter, created_at, updated_at
+             body_text, draft_date, matter, source_document_id, edited_document_id, created_at, updated_at
       from drafts
       where id = ${id} and user_id = ${ctx.userId}
       limit 1
@@ -111,6 +115,9 @@ export const draftsService = {
         editedHtml: req.editedHtml,
         bodyText: req.bodyText,
         draftDate: req.draftDate ?? null,
+        matter: req.matter ?? '',
+        sourceDocumentId: req.sourceDocumentId ?? null,
+        editedDocumentId: null,
         createdAt: now,
         updatedAt: now,
       };
@@ -119,13 +126,14 @@ export const draftsService = {
     }
     const rows = await sql<Row[]>`
       insert into drafts
-        (user_id, title, doc_type, language, tone, fields_json, edited_html, body_text, draft_date, matter)
+        (user_id, title, doc_type, language, tone, fields_json, edited_html, body_text, draft_date, matter,
+         source_document_id)
       values
         (${ctx.userId}, ${title}, ${req.docType}, ${req.language}, ${req.tone},
          ${sql.json(req.fields)}, ${req.editedHtml}, ${req.bodyText},
-         ${req.draftDate ?? null}, ${req.matter ?? ''})
+         ${req.draftDate ?? null}, ${req.matter ?? ''}, ${req.sourceDocumentId ?? null})
       returning id, title, doc_type, language, tone, fields_json, edited_html,
-                body_text, draft_date, matter, created_at, updated_at
+                body_text, draft_date, matter, source_document_id, edited_document_id, created_at, updated_at
     `;
     return fromRow(rows[0]!);
   },
@@ -164,7 +172,36 @@ export const draftsService = {
         matter = coalesce(${req.matter ?? null}::text, matter)
       where id = ${id} and user_id = ${ctx.userId}
       returning id, title, doc_type, language, tone, fields_json, edited_html,
-                body_text, draft_date, matter, created_at, updated_at
+                body_text, draft_date, matter, source_document_id, edited_document_id, created_at, updated_at
+    `;
+    return rows[0] ? fromRow(rows[0]) : null;
+  },
+
+  /** import-edit-document: link the Documents row holding the edited Word copy. */
+  async setEditedDocument(id: string, documentId: string, ctx: UserCtx): Promise<void> {
+    const sql = db();
+    if (!sql) {
+      const cur = memory.get(id);
+      if (cur) memory.set(id, { ...cur, editedDocumentId: documentId });
+      return;
+    }
+    await sql`update drafts set edited_document_id = ${documentId}::uuid where id = ${id} and user_id = ${ctx.userId}`;
+  },
+
+  /** File a draft under another matter ('' = no case). */
+  async setMatter(id: string, matter: string, ctx: UserCtx): Promise<SavedDraft | null> {
+    const sql = db();
+    if (!sql) {
+      const cur = memory.get(id);
+      if (!cur) return null;
+      const next = { ...cur, matter, updatedAt: new Date().toISOString() };
+      memory.set(id, next);
+      return next;
+    }
+    const rows = await sql<Row[]>`
+      update drafts set matter = ${matter} where id = ${id} and user_id = ${ctx.userId}
+      returning id, title, doc_type, language, tone, fields_json, edited_html,
+                body_text, draft_date, matter, source_document_id, edited_document_id, created_at, updated_at
     `;
     return rows[0] ? fromRow(rows[0]) : null;
   },

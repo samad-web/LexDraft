@@ -1,3 +1,23 @@
+# PLAN — Open and edit your own document (APPROVED 2026-11-23; BUILT, not deployed)
+
+## Goal and scope
+- Advocates open a Word/PDF file drafted outside DifAi, edit it in the Draft editor for a client case, several cases (separate copies, owner chose Option A), or no case, and download it with their own layout.
+- Out of scope (v1): "Save as case notes" (owner to clarify), editing headers/footers/footnotes/text boxes, tracked changes, .odt/.rtf.
+
+## Project memory that applies
+- No live DB change without the owner's go: migration 0122 adds two nullable columns to drafts (additive).
+- Documents stay encrypted (document-encryption). No AI used for open/edit/save/download, so no credits. AI tools keep today's prices (credits-not-pages).
+- Black & white UI; red only for a mandatory issue.
+
+## Feature
+- `import-edit-document` (features/import-edit-document.md).
+
+## Build order
+1. Engine: `/v1/read-docx` + apply-edits alignment for inserted/deleted paragraphs (+ tests).
+2. API: migration 0122, `/drafting/document/open`, edited file re-filed into Documents on save (one row, firm-visible), source docx on reopen, copy / add to case (+ tests).
+3. Web: Open a document (Draft page), Edit in DifAi (Case → Documents), Copy to another case / Add to a case.
+4. Regression: engine pytest, api + web vitest, E2E draft flow. One commit `feat(import-edit-document)`, push. Deploy only on command.
+
 # PLAN — Competitive improvement in stages (APPROVED 2026-11-20; PAUSED by owner after Day 1 — waiting on team decision about High Court scope)
 
 ## Goal and scope

@@ -171,6 +171,20 @@ def row_values(row) -> List[str]:
     return out
 
 
+_JC = {"center": "center", "right": "right", "end": "right", "both": "justify"}
+
+
+def paragraph_align(p) -> Optional[str]:
+    """'center' / 'right' / 'justify' or None: the paragraph's own alignment, else
+    its style's. Read from the XML because python-docx raises on values it doesn't
+    know — "start"/"end", which LibreOffice and newer Word write."""
+    for el in (p._p, p.style._element if p.style is not None else None):
+        jc = el.find(f"{qn('w:pPr')}/{qn('w:jc')}") if el is not None else None
+        if jc is not None:
+            return _JC.get(jc.get(qn("w:val")))
+    return None
+
+
 def body_items(doc) -> Iterator[Union[Paragraph, Table]]:
     """Paragraphs and tables of the document body, in reading order."""
     for child in doc.element.body.iterchildren():

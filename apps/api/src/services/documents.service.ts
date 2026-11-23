@@ -241,6 +241,31 @@ export const documentsService = {
     return withFileFlags(rec);
   },
 
+  /** Replace a document's file (import-edit-document: the edited Word copy on
+   *  each save). The new bytes go to a fresh key and are read back before the row
+   *  points at them; only then is the old blob deleted, so a failed write never
+   *  leaves the row without a file. */
+  async replaceFile(
+    id: string,
+    firmId: string | null,
+    file: { fileName: string; fileMime: string; body: Buffer },
+  ): Promise<DocumentRecord | undefined> {
+    if (!firmId) return undefined;
+    const old = await this.getStorageKey(id, firmId);
+    const safeName = file.fileName.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 200) || 'file';
+    const key = `documents/${firmId}/${id}/${Date.now()}-${safeName}`;
+    await storage().putObject({ key, body: file.body, contentType: file.fileMime });
+    const readback = await storage().getObject(key);
+    if (!readback || readback.body.length === 0) {
+      throw Object.assign(new Error('stored object could not be read back'), { status: 502 });
+    }
+    const rec = await this.attachStorage(id, firmId, {
+      storageKey: key, fileName: file.fileName, fileMime: file.fileMime, fileSize: file.body.length,
+    });
+    if (old && old.key !== key) await storage().delete(old.key).catch(() => {});
+    return rec;
+  },
+
   /** Patch metadata. Only the four user-editable fields are accepted; storage
    *  and portal flags have their own endpoints. Returns `undefined` if the
    *  row doesn't exist or is in a different firm (treated as 404 upstream). */

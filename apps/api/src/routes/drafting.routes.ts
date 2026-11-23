@@ -39,7 +39,9 @@ import {
   EngineValidationError,
   EngineSignoffConflict,
   EngineDisabledError,
+  EngineError,
 } from '../services/engine-client.service';
+import { importedDocumentsService, ImportError, MAX_IMPORT_BYTES } from '../services/imported-documents.service';
 import { shadowRecorderService } from '../services/shadow-recorder.service';
 import { shadowReportService } from '../services/shadow-report.service';
 import { factSheetService } from '../services/factsheet.service';
@@ -578,6 +580,46 @@ draftingRouter.post('/document/read', requireFeature('drafting.ai'), documentRea
   }
 });
 
+// "Open a document" / "Edit in DifAi" (import-edit-document): the advocate's own
+// Word/PDF file in the editor. No model (engine / LibreOffice / pdf-parse), so
+// drafting.basic and no credits; its own per-user limit because OCR is heavy.
+const documentOpenLimiter = perUserWriteLimit({ windowMs: 60 * 60 * 1000, limit: 30, name: 'document opens' });
+const DocumentOpenBody = z.union([
+  z.object({ documentId: z.string().uuid() }),
+  z.object({
+    fileName: z.string().min(1).max(300),
+    fileBase64: z.string().min(1).refine(
+      (b) => Buffer.byteLength(b, 'base64') <= MAX_IMPORT_BYTES,
+      { message: 'too_large' },
+    ),
+    matter: z.string().max(300).default(''),
+    docType: z.string().trim().min(1).max(80).default('Other'),
+  }),
+]);
+draftingRouter.post('/document/open', requireFeature('drafting.basic'), documentOpenLimiter, async (req, res, next) => {
+  try {
+    const parsed = DocumentOpenBody.safeParse(req.body);
+    if (!parsed.success) {
+      const tooLarge = parsed.error.issues.some((i) => i.message === 'too_large');
+      res.status(tooLarge ? 413 : 400).json({ error: tooLarge ? 'too_large' : 'validation' });
+      return;
+    }
+    const userId = req.user!.id;
+    const ctx = { userId, firmId: await firmIdForUser(userId) };
+    const b = parsed.data;
+    res.json('documentId' in b
+      ? await importedDocumentsService.openDocument(b.documentId, ctx)
+      : await importedDocumentsService.openUpload(b, ctx));
+  } catch (err) {
+    if (err instanceof ImportError) { res.status(err.status).json({ error: err.code }); return; }
+    if (err instanceof EngineDisabledError || err instanceof EngineError) {
+      res.status(503).json({ error: 'engine_unavailable' });
+      return;
+    }
+    next(err);
+  }
+});
+
 const DocumentAskBody = z.object({
   fileName: z.string().min(1).max(400),
   pages: z
@@ -877,13 +919,14 @@ draftingRouter.post('/engine/blank', requireFeature('drafting.ai'), async (req, 
 });
 
 // Download after HAND EDITS: write the edited paragraphs back into the engine
-// .docx so the Word/PDF keeps the court layout. {matched:false} when paragraphs
-// were added/removed (the client then uses its generic export).
+// .docx (or the advocate's own imported .docx) so the Word/PDF keeps its layout,
+// paragraphs added/removed included. {matched:false} when it can't be mapped (the
+// client then uses its generic export). No model, so drafting.basic (Munshi too).
 const ApplyEditsBody = z.object({
   docxBase64: z.string().min(1).max(20_000_000),
   paragraphs: z.array(z.string().max(20_000)).max(5_000),
 });
-draftingRouter.post('/engine/apply-edits', requireFeature('drafting.ai'), async (req, res, next) => {
+draftingRouter.post('/engine/apply-edits', requireFeature('drafting.basic'), async (req, res, next) => {
   try {
     const parsed = ApplyEditsBody.parse(req.body);
     const docx = await engineClient.applyEdits(parsed.docxBase64, parsed.paragraphs);

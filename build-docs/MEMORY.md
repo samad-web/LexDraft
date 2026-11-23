@@ -1,6 +1,7 @@
 # Project memory (LexDraft / DifAi)
 
 ## Decisions
+- 2026-11-23 (owner): advocates can open their own Word/PDF files and edit them in DifAi, for a client case, several cases or no case. Same document for several cases = separate independent copies (Option A), not one shared document, so one client's details never change another client's file. features/import-edit-document.md. Built the same day: tracked changes block opening (python-docx would duplicate them); the server builds the edited Word file from the edited lines; PDFs get a house-style .docx; /engine/apply-edits is drafting.basic (no model); alignment read from XML (w:jc start/end). Not built (owner didn't say yes): the old duplicate-copies-on-save of engine drafts in saveDraftToCaseDocuments.
 - 2026-11-19 (owner "fix the ladder"): s.138 dates follow Saketh India (1999) 3 SCC 1 — cause of action = notice receipt + 16 days, complaint within one calendar month excluding that day; late filing = proviso to s.142(1)(b). Only weekends + 26 Jan/15 Aug/2 Oct/25 Dec are flagged; no court holiday calendar exists in the app.
 - 2026-11-19 (owner): Claude only. No xAI/OpenAI anywhere, enforced in env.claudeOnly whatever the server .env says. Reverses 2026-11-08 Contract Review on OpenAI. Reason: sales promise that client facts stay with the firm and are never used for training.
 - 2026-11-19 (owner): co-counsel guests get an unpaid account limited to the shared matter (closes the free-account loophole noted 2026-11-17). Prod had 0 earlier guest accounts at deploy, so the loophole is fully closed.

@@ -14,6 +14,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { canEditInDifai } from '@/lib/imported-docs';
 import { useUIStore } from '@/store/ui';
 
 interface FolderDef {
@@ -74,6 +75,11 @@ export function DocumentsView() {
   const showToast = useUIStore((s) => s.showToast);
 
   const handleEdit = (d: DocumentRecord) => {
+    if (d.draftId) {
+      // an imported document's edited Word copy: edit its draft
+      navigate('/app/draft', { state: { draftId: d.draftId } });
+      return;
+    }
     if (d.kind === 'draft') {
       // Drafts edit by loading them into the drafting workspace, not in a
       // metadata-only dialog.
@@ -90,7 +96,7 @@ export function DocumentsView() {
       title: `Delete ${isDraft ? 'draft' : 'document'}?`,
       message: isDraft
         ? `"${d.name}" will be permanently removed from your saved drafts. The AI quota credit isn't refunded.`
-        : `"${d.name}" will be permanently removed, including any attached file. This can't be undone.`,
+        : `"${d.name}" will be permanently removed, including any attached file${d.draftId ? ' and its editable draft' : ''}. This can't be undone.`,
       confirmLabel: 'Delete',
       danger: true,
     });
@@ -100,6 +106,7 @@ export function DocumentsView() {
         await deleteDraft.mutateAsync(d.id);
       } else {
         await deleteDocument.mutateAsync(d.id);
+        if (d.draftId) await deleteDraft.mutateAsync(d.draftId);
       }
       showToast({ type: 'sage', text: `Deleted "${d.name}"` });
     } catch (err) {
@@ -306,12 +313,25 @@ export function DocumentsView() {
                                   </button>
                                 </Gate>
                               )}
+                              {docId && canEditInDifai(d) && (
+                                <Gate feature="drafting.basic">
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-ghost"
+                                    onClick={() => navigate('/app/draft', { state: { openDocumentId: docId } })}
+                                    title="Edit in DifAi (your file is kept as it is)"
+                                    aria-label={`Edit ${d.name} in DifAi`}
+                                  >
+                                    <Icon name="draft" size={13} />
+                                  </button>
+                                </Gate>
+                              )}
                               <button
                                 type="button"
                                 className="btn btn-sm btn-ghost"
                                 onClick={() => handleEdit(d)}
                                 disabled={!docId}
-                                title={d.kind === 'draft' ? 'Edit draft' : 'Edit metadata'}
+                                title={d.kind === 'draft' || d.draftId ? 'Edit draft' : 'Edit metadata'}
                                 aria-label={`Edit ${d.name}`}
                               >
                                 <Icon name="edit" size={13} />

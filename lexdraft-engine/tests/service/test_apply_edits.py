@@ -34,10 +34,15 @@ def test_filled_blanks_land_in_the_original_paragraphs():
     assert out.sections[0].left_margin == before.sections[0].left_margin
 
 
-def test_added_paragraph_falls_back():
+def test_added_paragraph_is_written_into_the_docx():
+    # Was "falls back": import-edit-document (owner-approved 2026-11-23) changed the
+    # rule — added paragraphs now clone a neighbour's format instead of matched:false.
     docx, blocks = _blank()
-    r = client.post("/v1/apply-edits", json={"docx_base64": docx, "paragraphs": blocks + ["A new paragraph."]})
-    assert r.json() == {"matched": False}
+    r = client.post("/v1/apply-edits", json={"docx_base64": docx, "paragraphs": blocks + ["A new paragraph."]}).json()
+    assert r["matched"] is True
+    out = Document(io.BytesIO(base64.b64decode(r["docx_base64"])))
+    texts = [p.text for p in out.paragraphs if p.text.strip()]
+    assert texts[-1] == "A new paragraph." and texts.count("A new paragraph.") == 1
 
 
 def test_unchanged_text_round_trips():
