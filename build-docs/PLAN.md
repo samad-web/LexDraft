@@ -1,4 +1,4 @@
-# PLAN — Open and edit your own document (APPROVED 2026-11-23; BUILT, not deployed)
+# PLAN — Open and edit your own document (APPROVED 2026-11-23; LIVE e22a280)
 
 ## Goal and scope
 - Advocates open a Word/PDF file drafted outside DifAi, edit it in the Draft editor for a client case, several cases (separate copies, owner chose Option A), or no case, and download it with their own layout.

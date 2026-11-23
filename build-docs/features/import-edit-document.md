@@ -1,6 +1,6 @@
 # Open and edit your own document (import-edit-document)
 
-**Status:** BUILT 2026-11-23 (owner approved; Option A = separate copy per case). Not deployed; migration 0122 local only.
+**Status:** LIVE 2026-11-23 (e22a280; owner approved; Option A = separate copy per case). Migration 0122 on prod.
 
 ## Purpose
 Advocates draft in MS Word outside DifAi. They want to open that file in DifAi, edit it there for one client's case, for several cases, or for no case, and download it with their own layout kept.
