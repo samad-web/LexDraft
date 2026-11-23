@@ -1,4 +1,10 @@
 # Testing
+## Save as case note — 2026-11-23
+- API: lib/__tests__/text-extraction-doc.test.ts 4/4 (AC5 .doc by mime or name, unconvertible .doc reported, AC6 .docx unchanged, msword accepted / unknown refused).
+- Web: components/__tests__/save-as-note.test.ts 3/3 (AC1 one note per case, AC4 partial failure names the case, AC3 limit mirrors the API's 50,000).
+- Local end-to-end (real LibreOffice + local PG16, test@ account, 2 temp cases, deleted after): 6/6 — real .doc read; separate shared + private notes; private hidden from another member; editing one note leaves the other.
+- Full suites: API 101/101 files, 1188 pass / 4 skipped; web 435/437 (same 2 environmental failures as below: password-rule CRLF, share-link with local .env). tsc api + web clean; vite build ok.
+
 ## Open and edit your own document — 2026-11-23
 - Engine: tests/service/test_user_docx.py 17/17 (read-docx layout + warnings; refusals: not docx, password/OLE, macro, zip bomb, tracked changes, empty, bad base64; added/deleted paragraphs keep header, footer, margins, logo, neighbour font + indent; table row clone; heading -> body format; unrelated text refused; same-count path unchanged; w:jc start/end). test_apply_edits.py: `test_added_paragraph_falls_back` replaced by `test_added_paragraph_is_written_into_the_docx` (the rule changed by owner approval, so the old assertion was wrong, not the code).
 - API: services/__tests__/imported-documents.service.test.ts 19/19 + routes/__tests__/documents-list-imported.test.ts 3/3 (AC2-AC6, AC9: one edited row after 5 saves, original never changed, Option A copies are independent, rollback on failure, other firm 404).

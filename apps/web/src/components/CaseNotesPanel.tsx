@@ -20,7 +20,7 @@ import { DictateButton } from './DictateButton';
 // the matter plus the viewer's own private notes, with a single "Add note"
 // CTA that opens a modal supporting both typed entry and file upload.
 //
-// File uploads accept PDF/DOCX/TXT/MD; the server text-extracts on finalize
+// File uploads accept PDF/DOC/DOCX/TXT/MD; the server text-extracts on finalize
 // and stores the result in the note body so AI drafting can pull it in.
 //
 // The author can edit a note in place (title + body, typing or voice) via
@@ -28,7 +28,7 @@ import { DictateButton } from './DictateButton';
 // matter was opened.
 // =============================================================================
 
-const ACCEPT_MIME = '.pdf,.docx,.txt,.md,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const ACCEPT_MIME = '.pdf,.doc,.docx,.txt,.md,application/pdf,text/plain,text/markdown,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const MAX_BYTES = 25 * 1024 * 1024;
 
 interface CaseNotesPanelProps {
@@ -433,7 +433,7 @@ function NewCaseNoteModal({ open, onClose, caseId, matterTitle }: NewCaseNoteMod
             className="input"
           />
           <div className="cs-hint">
-            PDF, DOCX, TXT or MD · up to 25 MB · the text is extracted for AI drafting
+            PDF, Word (.doc, .docx), TXT or MD · up to 25 MB · the text is extracted for AI drafting
           </div>
           {!fileSizeOk && (
             <div className="cs-hint is-error" role="alert">

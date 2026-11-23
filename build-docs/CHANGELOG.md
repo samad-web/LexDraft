@@ -1,4 +1,6 @@
 # Changelog
+- Save as case note (2026-11-23, owner): Draft page "Save as case note" saves the document's text as a separate note in each chosen case, Shared or Only me (existing POST /case-notes, no migration); Case Notes upload accepts .doc (LibreOffice -> mammoth in text-extraction). features/save-as-case-note.md. Not deployed.
+
 - DEPLOYED 2026-11-23 07:02 UTC (e22a280, api + web + engine; 0122 applied with owner OK): open and edit your own document. Backup pre-0122-20261123-065249.dump; rollback lexdraft-api/web/engine:prev-20261123-065249. Smoke: ready db ok, site 200, sign-in 400, document/open + edited-file 401 signed out, live read-docx ok, Google client id + "Open a document" in build.
 
 - Open and edit your own document (2026-11-23, owner; Option A): Draft page "Open a document" (.docx, .doc, PDF as text) for a case or no case; Case/Documents "Edit in DifAi"; the original is kept untouched as "<name> (original)" and the edited Word copy is filed in Documents (one row, replaced each save, firm-visible, shareable); "Copy to another case" makes an independent copy. Engine: /v1/read-docx, apply-edits handles added/deleted paragraphs, start/end alignment fix. Migration 0122 (drafts.source_document_id, edited_document_id). features/import-edit-document.md.

@@ -107,9 +107,16 @@ export async function extractText(input: {
       const result = await mammoth.extractRawText({ buffer: input.body });
       return { ok: true, text: truncate(normalizeWhitespace(result.value ?? '')) };
     }
+    if (looksLikeMime(input.mime, ['application/msword']) || ext === 'doc') {
+      // Old Word .doc: LibreOffice converts it to .docx first (convert only, macros
+      // never run), then the same mammoth read. Loaded lazily: soffice is heavy.
+      const { convertDocToDocx } = await import('../services/document-render.service');
+      const result = await mammoth.extractRawText({ buffer: await convertDocToDocx(input.body) });
+      return { ok: true, text: truncate(normalizeWhitespace(result.value ?? '')) };
+    }
     return {
       ok: false,
-      error: `Unsupported file type "${input.mime || ext}". Supported: PDF, DOCX, TXT, MD.`,
+      error: `Unsupported file type "${input.mime || ext}". Supported: PDF, DOC, DOCX, TXT, MD.`,
     };
   } catch (err) {
     logger.warn({ err, mime: input.mime, fileName: input.fileName }, 'text extraction failed');
@@ -126,4 +133,5 @@ export const SUPPORTED_NOTE_MIME_TYPES = [
   'text/markdown',
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
 ] as const;

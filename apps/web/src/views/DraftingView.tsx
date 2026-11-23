@@ -40,6 +40,8 @@ import type { BlankForm } from '@/hooks/useFormatLibrary';
 import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { OpenDocumentModal } from '@/components/OpenDocumentModal';
 import { CopyToCaseModal } from '@/components/CopyToCaseModal';
+import { SaveAsNoteModal } from '@/components/SaveAsNoteModal';
+import { Gate } from '@/components/Gate';
 import { useCases } from '@/hooks/useCases';
 import { useMoveDraftToCase, useSaveEditedFile, type OpenedDocument } from '@/hooks/useImportedDocs';
 import { importErrorText, importWarnings } from '@/lib/imported-docs';
@@ -308,6 +310,7 @@ export function DraftingView() {
   const [imported, setImported] = useState<{ sourceDocumentId: string; matter: string } | null>(null);
   const [openDocOpen, setOpenDocOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
   // The engine-rendered .docx (base64) for the CURRENT engine draft, if any. This is
   // the FILING-grade copy (real Word file, selectable text, correct margins) the
   // engine produced — distinct from the rasterised client-side "working copy" export.
@@ -2210,6 +2213,14 @@ export function DraftingView() {
                       <Icon name="documents" size={13} /> Copy to another case
                     </button>
                   )}
+                  <Gate feature="matter.notes.create">
+                    <button
+                      className="btn btn-sm btn-ghost" type="button" onClick={() => setNoteOpen(true)}
+                      title="Keep this document's text as a note on one or more cases"
+                    >
+                      <Icon name="draft" size={13} /> Save as case note
+                    </button>
+                  </Gate>
                 </div>
               )}
             </div>
@@ -2921,6 +2932,15 @@ export function DraftingView() {
         defaultCase={draftCase?.title ?? ''}
         onOpened={openDocumentInEditor}
       />
+      {noteOpen && (
+        <SaveAsNoteModal
+          open
+          onClose={() => setNoteOpen(false)}
+          title={activeDocType}
+          text={editedHtml ? htmlToPlainText(editedHtml) : output ?? ''}
+          {...(draftCase?.id ? { defaultCaseId: draftCase.id } : {})}
+        />
+      )}
       {currentDraftId && (
         <CopyToCaseModal
           open={copyOpen}
