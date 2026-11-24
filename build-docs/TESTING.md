@@ -761,3 +761,7 @@
 - brief-pack-margin.test.ts: band 53–63% per pack; new "moving advocate→chambers / chambers→law_firm costs less than topping up to the same credits" (cheapest pack mix, packs repeat) — fails on the 42–45% prices (Chambers→Firm ₹3,652 < ₹3,699), passes now.
 - brief-packs.test.ts: new edge cases — pack_60 order at ₹285 and ₹849 (earlier v5 prices) paid after the change is granted and invoiced at that price; a v5 order at a price never charged grants nothing. Prices/paise updated in brief-packs, pricing-v5, admin-credit-price, plan-whatsapp (integration, needs a DB; not run).
 - Pack + billing suites 85/85. Regression: api tsc clean; api unit 1184 pass, 4 skipped; share-links suite fails to load without apps/api/.env (pre-existing, same on origin/main).
+
+## missing-details (2026-11-24)
+- detail-edits.test.ts AC1–AC6 (typing only stores; one request on Update with all details; none when nothing typed; kept across popup close; per-draft and cleared after update; panel has no timer and one server call) 6/6. tsc clean.
+- Regression: web unit 442/443 — password-rule fails identically on origin/main (pre-existing). Not checked in a browser yet.

@@ -426,3 +426,5 @@
 - 2026-11-24 feat(brief-pack-pricing): Brief Packs ₹119 / ₹285 / ₹615 / ₹1,549 + GST (25 / 60 / 130 / 330 credits), 42–45% margin at full use (was ₹429 / ₹849 / ₹1,699 / ₹4,249, 78–83%). Admin hand-sale default follows the best pack rate: ₹4.69. Prices come from the API, so web needs no change.
 
 - 2026-11-24 feat(brief-pack-pricing): band C — Brief Packs ₹179 / ₹389 / ₹799 / ₹1,899 + GST (25 / 60 / 130 / 330 credits), 53–63% margin at full use, so upgrading always beats topping up. Admin hand-sale default ₹5.75. Fix: a pack order opened at an earlier v5 price and paid after a price change is granted and invoiced at that price (was: money taken, no credits). Prices come from the API; web unchanged. No migration.
+
+- 2026-11-24 fix(missing-details): typing in "Missing details" no longer re-drafts the document; it updates once on "Update document". Typed values survive closing the popup; the filled count and Update button are pinned at the bottom of the popup.

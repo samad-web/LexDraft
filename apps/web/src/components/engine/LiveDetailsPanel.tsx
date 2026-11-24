@@ -3,32 +3,29 @@ import type { DraftLang } from '../../lib/draftLanguages';
 // LiveDetailsPanel — the "Missing details" card beside a drafted document.
 //
 // Lists the details the document still needs (required ones first), each with
-// an input. As the advocate types, the edits are saved to the matter's fact
-// sheet and the document is RE-DRAFTED straight away (POST /engine/intake/edit
-// with draftNow), so the preview updates within a second or two — no "Submit
-// again", and anything still missing stays a [placeholder] instead of blocking.
+// an input. Typing only fills the form: the document is re-drafted ONCE, when
+// the advocate clicks "Update document" (owner 2026-11-24 — no re-draft on
+// every keystroke). Anything left blank stays a [placeholder] instead of
+// blocking. The action bar stays pinned so it's visible however long the list.
 // =============================================================================
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FactSheetField, IntakeState } from '@lexdraft/types';
 import { useIntakeEdit } from '@/hooks/useIntake';
+import { clearEdits, draftKey, getEdits, setEdit, updateRequest, type DetailEdits } from './detail-edits';
 
 interface Props {
   /** The intake state behind the current draft (matterId, docLabel, fact sheet). */
   state: IntakeState;
-  /** Called with the re-drafted state after each saved edit. */
+  /** Called with the re-drafted state after "Update document". */
   onUpdated: (state: IntakeState) => void;
-  /** The advocate has hand-edited the document text; live updates would replace it. */
+  /** The advocate has hand-edited the document text; an update would replace it. */
   locked: boolean;
-  /** Discard the hand edits so live updates can resume. */
+  /** Discard the hand edits so updates can resume. */
   onUnlock: () => void;
   language?: DraftLang;
-  /** Re-draft only on "Update document" (an AI-drafted document: each update is
-   *  a model call, so not on every keystroke). */
-  manual?: boolean;
 }
 
-const DEBOUNCE_MS = 900;
 /** A value the engine filled in for a gap ("[name of the party to be provided]"). */
 const PLACEHOLDER = /\[[^\]]{0,80}?\bto be (?:drafted|provided|filled|completed|supplied)\b[^\]]{0,80}?\]/i;
 
@@ -42,51 +39,36 @@ export function missingDetailCount(state: IntakeState): number {
   return state.factSheet.flatMap((s) => s.fields).filter(isMissing).length;
 }
 
-export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language, manual }: Props) {
+export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language }: Props) {
   const edit = useIntakeEdit();
   const fields = useMemo(() => state.factSheet.flatMap((s) => s.fields), [state.factSheet]);
-  const [values, setValues] = useState<Record<string, string>>({});
+  const key = draftKey(state.matterId, state.docLabel);
+  // What the advocate has typed and not yet applied (kept across popup close/open).
+  const [typed, setTyped] = useState<DetailEdits>(() => getEdits(key));
   const [note, setNote] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const pending = useRef<Record<string, string>>({});
-  // Edits applied engine-only while typing; "Update document" re-sends them with the
-  // model polish (compose) on.
-  const unpolished = useRef<Record<string, string>>({});
-  const [needsPolish, setNeedsPolish] = useState(false);
-  const latest = useRef(0); // only the newest request may update the document
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // A new draft (different matter or format) starts from its own fact sheet.
+  // A new draft (different matter or format) starts from its own typed details.
   useEffect(() => {
-    setValues({});
+    setTyped(getEdits(key));
     setNote(null);
-    pending.current = {};
-    unpolished.current = {};
-    setNeedsPolish(false);
-  }, [state.matterId, state.docLabel]);
-
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  }, [key]);
 
   const valueOf = (f: FactSheetField) =>
-    values[f.key] ?? (isMissing(f) ? '' : (f.value ?? ''));
+    typed[f.key] ?? (isMissing(f) ? '' : (f.value ?? ''));
 
-  // compose=false while typing: an engine-only re-draft (fast, no model call, no quota).
-  const flush = async (compose: boolean) => {
-    if (timer.current) clearTimeout(timer.current);
-    const edits = compose ? { ...unpolished.current, ...pending.current } : pending.current;
-    pending.current = {};
-    if (!Object.keys(edits).length) return;
-    const seq = ++latest.current;
+  // Typing only fills the form; nothing is sent and the document doesn't change.
+  const change = (field: string, value: string) => {
+    setTyped(setEdit(key, field, value));
+    setNote(null);
+  };
+
+  // "Update document": the advocate's approval. One re-draft with every typed detail.
+  const apply = async () => {
+    const req = updateRequest(state.matterId, state.docLabel, typed, language);
+    if (!req) return;
     try {
-      const next = await edit.mutateAsync({
-        matterId: state.matterId,
-        docLabel: state.docLabel,
-        edits,
-        draftNow: true,
-        ...(compose ? {} : { compose: false }),
-        ...(language ? { language } : {}),
-      });
-      if (seq !== latest.current) return; // a newer edit is on its way
+      const next = await edit.mutateAsync(req);
       if (next.status === 'refused' && next.refusal) {
         setNote(`Not updated: ${next.refusal.reason}`);
         return;
@@ -95,27 +77,23 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language,
         setNote('Saved. The document will update once the remaining required details are in.');
         return;
       }
-      unpolished.current = compose ? {} : { ...unpolished.current, ...edits };
-      setNeedsPolish(!compose);
-      setNote(compose ? null : 'Updated. Click Update document for the final wording.');
+      clearEdits(key);
+      setTyped({});
+      setNote('Document updated.');
       onUpdated(next);
     } catch {
-      if (seq === latest.current) setNote('Could not update the document. Check your connection and try again.');
+      setNote('Could not update the document. Check your connection and try again.');
     }
-  };
-
-  const change = (key: string, value: string) => {
-    setValues((v) => ({ ...v, [key]: value }));
-    pending.current[key] = value;
-    if (manual) return; // saved on "Update document"
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { void flush(false); }, DEBOUNCE_MS);
   };
 
   const missingRequired = fields.filter((f) => f.required && isMissing(f));
   const missingOptional = fields.filter((f) => !f.required && isMissing(f));
   const filled = fields.filter((f) => !isMissing(f));
   const shown = showAll ? [...missingRequired, ...missingOptional, ...filled] : [...missingRequired, ...missingOptional];
+  const missing = [...missingRequired, ...missingOptional];
+  const nowFilled = missing.filter((f) => (typed[f.key] ?? '').trim()).length;
+  const stillBlank = missing.length - nowFilled;
+  const hasTyped = Object.keys(typed).length > 0;
 
   if (fields.length === 0) return null;
 
@@ -123,19 +101,17 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language,
     <section className="dc-card">
       <div className="dw-card-head">
         <div className="dc-eyebrow">Missing details</div>
-        <span className="dw-count">{missingRequired.length + missingOptional.length}</span>
+        <span className="dw-count">{missing.length}</span>
       </div>
       <p className="dc-card-text" style={{ marginTop: 0 }}>
-        {missingRequired.length + missingOptional.length === 0
-          ? 'Every detail is filled. Edit any of them and the document updates.'
-          : manual
-            ? 'Fill these in, then click Update document. Anything left blank stays a [placeholder].'
-            : 'Fill these in and the document updates as you type. Anything left blank stays a [placeholder].'}
+        {missing.length === 0
+          ? 'Every detail is filled. Edit any of them, then click Update document.'
+          : 'Fill these in, then click Update document. The document doesn’t change until you do. Anything left blank stays a [placeholder].'}
       </p>
 
       {locked && (
         <div className="body-xs" style={{ marginBottom: 8 }}>
-          You’ve edited the document text by hand, so live updates are paused (they would replace your edits).{' '}
+          You’ve edited the document text by hand, so updates are paused (they would replace your edits).{' '}
           <button type="button" className="btn btn-ghost btn-sm" onClick={onUnlock}>Discard my text edits</button>
         </div>
       )}
@@ -157,15 +133,21 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language,
         </button>
       )}
 
-      {(manual || needsPolish) && (
-        <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 8 }}
-          disabled={locked || edit.isPending} onClick={() => { void flush(true); }}>
+      {/* Pinned to the bottom of the popup / rail so it's in view however long the list. */}
+      <div className="ldp-actions">
+        {missing.length > 0 && (
+          <div className="body-xs" aria-live="polite">
+            {nowFilled} of {missing.length} filled
+            {hasTyped && stillBlank > 0 ? ` · ${stillBlank} will stay as [placeholders]` : ''}
+          </div>
+        )}
+        <button type="button" className="btn btn-primary btn-sm"
+          disabled={locked || edit.isPending || !hasTyped} onClick={() => { void apply(); }}>
           {edit.isPending ? 'Updating…' : 'Update document'}
         </button>
-      )}
-
-      <div className="body-xs muted" style={{ marginTop: 6, minHeight: 16 }} aria-live="polite">
-        {edit.isPending ? 'Updating the document…' : note}
+        <div className="body-xs muted" style={{ minHeight: 16 }} aria-live="polite">
+          {edit.isPending ? 'Updating the document…' : note}
+        </div>
       </div>
     </section>
   );

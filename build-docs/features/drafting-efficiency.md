@@ -22,6 +22,7 @@ Raise how many drafts production can run at once, without new infrastructure. To
 - Progress polls neither consume nor are blocked by the IP budget; other routes are still limited at the same ceiling.
 
 ## 4. Live edits engine-only (user chose 2026-11-07)
+- **Superseded 2026-11-24 (owner):** typing no longer re-drafts. The panel keeps typed details (shared by the popup and the rail, `detail-edits.ts`) and re-drafts once on "Update document" (`draftNow: true`, full compose). The engine-only path below stays on the server but the web no longer calls it.
 - Typing in "Missing details" sends `/engine/intake/edit` with `draftNow: true, compose: false`: engine re-draft only. No compose, no AI fallback, no model call. Skips `llmGenerationLimiter` and the AI quota (`isEngineOnlyEdit`); the per-user write limiter (120/15 min) still applies.
 - After an engine-only update the panel shows "Update document"; it re-sends the edits made since the last polish with compose on.
 - Only the newest request updates the document (sequence guard), so a slow compose reply cannot overwrite a newer edit.

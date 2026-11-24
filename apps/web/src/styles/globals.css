@@ -4895,6 +4895,14 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
 .dw-ask-pop-title { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-top: 2px; }
 .dw-ask-pop-notes { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
 .dw-ask-pop .dc-card { padding: 0; border: 0; background: none; box-shadow: none; }
+/* "Missing details" action bar (filled count + Update document). In the popup it
+   is pinned to the bottom of the scroll area so it stays in view however long
+   the list is. */
+.ldp-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.dw-ask-pop .ldp-actions {
+  position: sticky; bottom: -16px; z-index: 1; padding: 10px 0 12px;
+  background: var(--bg-surface); border-top: 1px solid var(--border-subtle);
+}
 .dw-ask-reopen {
   position: fixed; right: 24px; bottom: 24px; z-index: 90;
   padding: 10px 16px; border-radius: var(--radius-full); cursor: pointer;

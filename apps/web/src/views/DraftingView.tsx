@@ -2512,12 +2512,11 @@ export function DraftingView() {
 
               {engineSession && !askOpen && <OpenDraftNote state={engineSession} />}
 
-              {/* MISSING DETAILS — live: typing re-drafts the document (in the
+              {/* MISSING DETAILS — typing fills the form; "Update document" re-drafts once (in the
                   popup while it's open, here once it's closed) */}
               {engineSession && engineSession.status === 'generated' && !askOpen && (
                 <LiveDetailsPanel
                   state={engineSession}
-                  manual={engineSession.draftedBy === 'ai'}
                   locked={hasLocalEdits}
                   onUnlock={() => setEditedHtml(null)}
                   onUpdated={(s) => acceptEngineDraft(s, { live: true })}
@@ -2549,7 +2548,6 @@ export function DraftingView() {
                   )}
                   <LiveDetailsPanel
                     state={engineSession}
-                    manual={engineSession.draftedBy === 'ai'}
                     locked={hasLocalEdits}
                     onUnlock={() => setEditedHtml(null)}
                     onUpdated={(s) => acceptEngineDraft(s, { live: true })}
