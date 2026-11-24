@@ -64,8 +64,8 @@ function stubRazorpay(order: { amount?: number; notes?: Record<string, unknown> 
 }
 
 describe('AC1 buying a pack opens a one-time Razorpay order for exactly its price', () => {
-  // Brief Packs (owner 2026-11-24): ₹119 / ₹285 / ₹615 / ₹1,549 + 18% GST.
-  it.each([['pack_25', 14042], ['pack_60', 33630], ['pack_130', 72570], ['pack_330', 182782]] as const)('%s -> order of %i paise', async (pack, paise) => {
+  // Brief Packs (owner 2026-11-24, band C): ₹179 / ₹389 / ₹799 / ₹1,899 + 18% GST.
+  it.each([['pack_25', 21122], ['pack_60', 45902], ['pack_130', 94282], ['pack_330', 224082]] as const)('%s -> order of %i paise', async (pack, paise) => {
     h.useFakeDb = true;
     h.rows = (t) => (t.includes('from users u left join firms') ? [owner()] : []);
     const { body } = stubRazorpay();
@@ -117,14 +117,16 @@ describe('AC2/AC3 credits come only from the signed webhook, once, for the right
   const grantInsert = () => h.calls.find((c) => c.text.includes('insert into credit_grants'));
   const firmBuyer = { practice: 'P', name: 'N', email: null, phone: null, gstin: null, address_line: null, pincode: null, state: 'Tamil Nadu' };
 
-  it('pack_60 paid: 60 credits for 12 months, one GST invoice for ₹336.30 (₹285 + GST), logged as pack_bought', async () => {
+  const paidRows = (t: string) => t.includes('insert into credit_grants') ? [{ id: 'g1' }]
+    : t.includes('from firms f join users u') ? [firmBuyer]
+      : t.includes('insert into invoice_counters') ? [{ last: 4 }]
+        : t.includes('insert into subscription_invoices') ? [{ id: 'inv-p' }] : [];
+
+  it('pack_60 paid: 60 credits for 12 months, one GST invoice for ₹459.02 (₹389 + GST), logged as pack_bought', async () => {
     h.useFakeDb = true;
-    h.rows = (t) => t.includes('insert into credit_grants') ? [{ id: 'g1' }]
-      : t.includes('from firms f join users u') ? [firmBuyer]
-        : t.includes('insert into invoice_counters') ? [{ last: 4 }]
-          : t.includes('insert into subscription_invoices') ? [{ id: 'inv-p' }] : [];
-    stubRazorpay({ amount: 33630, notes: { pricing: 'v5', firm_id: '00000000-0000-0000-0000-0000000000f1', user_id: 'u1', pack: 'pack_60' } });
-    await billing.billingService.handleWebhook('evt_pk1', captured(33630));
+    h.rows = paidRows;
+    stubRazorpay({ amount: 45902, notes: { pricing: 'v5', firm_id: '00000000-0000-0000-0000-0000000000f1', user_id: 'u1', pack: 'pack_60' } });
+    await billing.billingService.handleWebhook('evt_pk1', captured(45902));
     const g = grantInsert()!;
     expect(g.values).toContain(60);
     expect(g.values).toContain('topup:pay_pk1');
@@ -133,9 +135,20 @@ describe('AC2/AC3 credits come only from the signed webhook, once, for the right
     const inv = h.calls.find((c) => c.text.includes('insert into subscription_invoices'))!;
     expect(inv.values).toContain('pack_60');
     expect(inv.values).toContain('one-time');
-    expect(inv.values.slice(-5)).toEqual([28500, 2565, 2565, 0, 33630]);
+    expect(inv.values.slice(-5)).toEqual([38900, 3501, 3501, 0, 45902]);
     expect(h.calls.find((c) => c.text.includes('insert into billing_events'))!.values).toContain('pack_bought');
   });
+
+  // Edge case: checkout opened before the 2026-11-24 price change, paid after it.
+  it.each([['₹285 (42-45% band)', 33630, 28500], ['₹849 (first v5 price)', 100182, 84900]] as const)(
+    'a pack_60 order opened at the earlier %s is honoured at what it charged', async (_label, paise, taxable) => {
+      h.useFakeDb = true;
+      h.rows = paidRows;
+      stubRazorpay({ amount: paise, notes: { pricing: 'v5', firm_id: '00000000-0000-0000-0000-0000000000f1', user_id: 'u1', pack: 'pack_60' } });
+      await billing.billingService.handleWebhook('evt_pk_old', captured(paise));
+      expect(grantInsert()!.values).toContain(60);
+      expect(h.calls.find((c) => c.text.includes('insert into subscription_invoices'))!.values.slice(-5)[0]).toBe(taxable);
+    });
 
   it('a redelivery grants nothing more (the grant ref already exists)', async () => {
     h.useFakeDb = true;
@@ -151,6 +164,7 @@ describe('AC2/AC3 credits come only from the signed webhook, once, for the right
     ['an order whose amount was changed', 99900, { firm_id: 'f1', pack: 'pack_60' }, 100],
     ['an unknown pack', 99900, { firm_id: 'f1', pack: 'pack_free' }, 99900],
     ['a subscription payment (no pack on the order)', 99900, { firm_id: 'f1' }, 99900],
+    ['a v5 order at a price we never charged', 45000, { pricing: 'v5', firm_id: 'f1', pack: 'pack_60' }, 45000],
   ])('%s grants nothing', async (_label, paid, notes, orderAmount) => {
     h.useFakeDb = true;
     stubRazorpay({ amount: orderAmount as number, notes: notes as Record<string, unknown> });
@@ -163,7 +177,7 @@ describe('AC2/AC3 credits come only from the signed webhook, once, for the right
 describe('AC5 the packs on offer', () => {
   it('four packs, prices + GST (pricing v5), offered with the plan state', () => {
     expect(billing.briefPacks().map((p) => [p.id, p.credits, p.priceInr])).toEqual([
-      ['pack_25', 25, 119], ['pack_60', 60, 285], ['pack_130', 130, 615], ['pack_330', 330, 1549],
+      ['pack_25', 25, 179], ['pack_60', 60, 389], ['pack_130', 130, 799], ['pack_330', 330, 1899],
     ]);
   });
 });

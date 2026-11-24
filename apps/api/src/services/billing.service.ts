@@ -9,7 +9,7 @@ import { logger } from '../logger';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import {
   BRIEF_PACK_DAYS, BRIEF_PACKS, isBriefPack, isPaidPlan, isV4Plan, MUNSHI, MUNSHI_ROLES, monthlyValueInr, periodPriceInr,
-  PLANS, V4_PACK_PRICES, v4ChargePaise, v5PlanFor, withGstPaise,
+  PLANS, PRIOR_V5_PACK_PRICES, V4_PACK_PRICES, v4ChargePaise, v5PlanFor, withGstPaise,
 } from '../lib/plans';
 import { creditService } from './credit.service';
 import { BadRequestError, ForbiddenError, HttpError, NotFoundError, UnauthorizedError } from '../lib/errors';
@@ -309,8 +309,11 @@ async function grantBriefPack(eventId: string, payment: { id: string; amount?: u
   const test = notes.coupon === 'test'; // set only by our own checkout, on our own order
   // Orders from before pricing v5 carry no `pricing` note and the v4 GST-inclusive price.
   const v4 = !test && notes.pricing !== 'v5';
-  const want = test ? TEST_PRICE_PAISE : v4 ? V4_PACK_PRICES[pack] * 100 : withGstPaise(BRIEF_PACKS[pack].priceInr);
-  if (Number(payment.amount) !== want || orderAmount !== want) {
+  // A v5 order is honoured at the price it was opened at: today's, or an earlier
+  // v5 price (checkout opened before a price change, paid after it).
+  const v5Price = [BRIEF_PACKS[pack].priceInr, ...PRIOR_V5_PACK_PRICES[pack]].find((inr) => withGstPaise(inr) === orderAmount);
+  const want = test ? TEST_PRICE_PAISE : v4 ? V4_PACK_PRICES[pack] * 100 : v5Price ? withGstPaise(v5Price) : null;
+  if (want === null || Number(payment.amount) !== want || orderAmount !== want) {
     logger.error({ paymentId: payment.id, pack, amount: payment.amount }, 'brief pack: amount does not match the pack, NOT granted');
     return;
   }
@@ -320,7 +323,7 @@ async function grantBriefPack(eventId: string, payment: { id: string; amount?: u
   });
   await subscriptionInvoiceService.issueForPayment({
     firmId, paymentId: payment.id, amountPaise: want, subscriptionId: null,
-    taxablePaise: test || v4 ? undefined : BRIEF_PACKS[pack].priceInr * 100,
+    taxablePaise: test || v4 || !v5Price ? undefined : v5Price * 100,
     plan: pack, cycle: 'one-time', seats: 0, periodStart: null, periodEnd: null,
   });
   if (granted) {

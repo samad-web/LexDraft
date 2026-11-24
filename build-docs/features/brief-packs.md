@@ -26,6 +26,7 @@ Status: **built 2026-11-14** (approved 2026-11-14). The owner chose to ship Brie
 - **Return:** `/api/billing/callback` also accepts an order return. It checks the signature (HMAC of `order_id|payment_id`) and goes to `/app/billing?pack=done`.
 - **Credits are granted only by the webhook:** `payment.captured` with `notes.pack`.
     - The amount must equal the pack price, else nothing is granted and an error is logged.
+    - Since 2026-11-24 a v5 order opened at an **earlier v5 price** (`PRIOR_V5_PACK_PRICES`) is also honoured at what it charged, so a checkout opened before a price change and paid after it still gets its credits.
     - Grant: `credit_grants` with `source='topup'`, `ref='topup:<payment id>'` (unique, so a redelivery is a no-op), expiring 12 months later.
     - **GST invoice:** "DifAi Brief Pack (60 credits)", same numbering and tax split.
     - Event logged as `pack_bought`.
@@ -50,6 +51,7 @@ Status: **built 2026-11-14** (approved 2026-11-14). The owner chose to ship Brie
 ## Edge cases
 - **Webhook twice / retry:** one grant, one invoice.
 - **Amount tampered or unknown pack:** no grant, logged.
+- **Price changed between checkout and payment:** granted at the order's price if it is the current or an earlier v5 price; any other amount grants nothing.
 - **Payment failed or cancelled:** nothing granted; "Payment cancelled" banner.
 - **Refund:** issued from the Razorpay dashboard. Credits are **not** taken back automatically, so the admin removes them by hand (manual credit note, same as plans).
 - **Cancelled or expired plan:** pack credits stay usable until they expire, but the app itself needs an active plan to sign in.
@@ -59,6 +61,7 @@ Status: **built 2026-11-14** (approved 2026-11-14). The owner chose to ship Brie
 1. Each pack creates a Razorpay order for exactly its price; non-owners get 403; with no keys, 503.
 2. A signed `payment.captured` for a pack grants exactly its credits once, valid 12 months, and issues one GST invoice.
 3. A wrong amount or an unknown pack grants nothing.
+3a. An order opened at an earlier v5 price and paid after a price change grants its credits and is invoiced at that price.
 4. Pack credits are spent after the month's plan credits.
 5. Web shows the packs on Plan & Billing (hidden on Android); web and API pack lists match.
 

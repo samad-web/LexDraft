@@ -756,3 +756,8 @@
 ## brief-pack-pricing (2026-11-24)
 - New brief-pack-margin.test.ts (every pack 42–45% at ₹2.5/credit + Razorpay fee; no pack below the cheapest plan rate; bigger packs never dearer per credit) 6/6; brief-packs, pricing-v5, admin-credit-price updated to the new prices — 71/71.
 - Regression: api unit 1179 pass, 1 suite fails to load without apps/api/.env (share-links, environment); web unit 436/437 — password-rule fails identically on origin/main without this change (pre-existing).
+
+## brief-pack-pricing band C (2026-11-24)
+- brief-pack-margin.test.ts: band 53–63% per pack; new "moving advocate→chambers / chambers→law_firm costs less than topping up to the same credits" (cheapest pack mix, packs repeat) — fails on the 42–45% prices (Chambers→Firm ₹3,652 < ₹3,699), passes now.
+- brief-packs.test.ts: new edge cases — pack_60 order at ₹285 and ₹849 (earlier v5 prices) paid after the change is granted and invoiced at that price; a v5 order at a price never charged grants nothing. Prices/paise updated in brief-packs, pricing-v5, admin-credit-price, plan-whatsapp (integration, needs a DB; not run).
+- Pack + billing suites 85/85. Regression: api tsc clean; api unit 1184 pass, 4 skipped; share-links suite fails to load without apps/api/.env (pre-existing, same on origin/main).

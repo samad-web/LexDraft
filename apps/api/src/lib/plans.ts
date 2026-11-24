@@ -32,13 +32,19 @@ export const PLANS: Record<PaidPlanId, PaidPlanDef> = {
 export const MUNSHI = { monthlyInr: 149, annualInr: 1639, max: 4 } as const;
 
 /** Brief Packs: one-time AI credit top-ups, GST extra, valid 12 months.
- *  Owner 2026-11-24: 42-45% margin at full use (₹2.5/credit + Razorpay fee), so
- *  every pack stays near the plan rate (~₹4.7/credit) and never undercuts a plan. */
+ *  Owner 2026-11-24 (band C): 53-63% margin at full use (₹2.5/credit + Razorpay
+ *  fee), ₹5.75-7.16 a credit, so moving up a plan always costs less than
+ *  topping the lower plan up to the same credits. */
 export const BRIEF_PACKS: Record<BriefPackId, { credits: number; priceInr: number }> = {
-  pack_25:  { credits: 25,  priceInr: 119 },
-  pack_60:  { credits: 60,  priceInr: 285 },
-  pack_130: { credits: 130, priceInr: 615 },
-  pack_330: { credits: 330, priceInr: 1549 },
+  pack_25:  { credits: 25,  priceInr: 179 },
+  pack_60:  { credits: 60,  priceInr: 389 },
+  pack_130: { credits: 130, priceInr: 799 },
+  pack_330: { credits: 330, priceInr: 1899 },
+};
+/** Earlier v5 pack prices (ex-GST, newest first). An order opened at one of
+ *  these and paid after a price change is still honoured at what it charged. */
+export const PRIOR_V5_PACK_PRICES: Record<BriefPackId, readonly number[]> = {
+  pack_25: [119, 429], pack_60: [285, 849], pack_130: [615, 1699], pack_330: [1549, 4249],
 };
 export const BRIEF_PACK_DAYS = 365;
 

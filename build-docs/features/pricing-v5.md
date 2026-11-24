@@ -14,7 +14,7 @@ Status: **built 2026-11-16** (owner approved, answers below). Migration **0113**
 1. **Credits 150 / 350 / 750** a month.
 2. **Analytics on every plan:** `analytics.firm` (+ `reports.activity`, which its data route needs) is granted to the Solo and Practice tiers and to the Solo Advocate role (0113). Firm Admin (Managing Partner) and Partner already had it. Practice Group Lead stays without it (0013). A Munshi never gets it. The Firm plan keeps the Firm tier.
 3. **Munshi:** ₹149 + GST a month, ₹1,639 + GST a year, max 4 on every paid plan.
-4. **Brief Packs:** ₹119 / ₹285 / ₹615 / ₹1,549 + GST for 25 / 60 / 130 / 330 credits, 365 days (owner 2026-11-24: 42–45% margin; was ₹429 / ₹849 / ₹1,699 / ₹4,249).
+4. **Brief Packs:** ₹179 / ₹389 / ₹799 / ₹1,899 + GST for 25 / 60 / 130 / 330 credits, 365 days (owner 2026-11-24, band C: 53–63% margin; earlier the same day ₹119 / ₹285 / ₹615 / ₹1,549 at 42–45%; first v5 ₹429 / ₹849 / ₹1,699 / ₹4,249).
 5. **Terms bumped** to 1.2 (API `TERMS_VERSION` = web `LEGAL_VERSION`), so every user re-accepts. Wording is "+ GST". The refund rules are unchanged, reworded for the new plans:
     - Advocate (the entry plan, like Sanad/Vakalat): not refundable;
     - Chambers and Firm yearly (like Associates): 7 days if no more than 10 credits were used; monthly: not refundable;
@@ -102,12 +102,17 @@ The AI cost is the planned ₹2.5 a credit (measured ₹1.6 + 50% for redrafts),
 |---|---|---|---|---|---|---|
 | Munshi seat, month | 149 | 4.1 | 50 | 0 (no AI) | **63.7%** | n/a |
 | Munshi seat, year (₹1,639) | 1,639 | 45.6 | 600 | 0 | **60.6%** | n/a |
-| Brief Pack 25 (₹119) | 119 | 3.3 | 0 | 62.5 | **44.7%** | 32 |
-| Brief Pack 60 (₹285) | 285 | 7.9 | 0 | 150 | **44.6%** | 76 |
-| Brief Pack 130 (₹615) | 615 | 17.1 | 0 | 325 | **44.4%** | 165 |
-| Brief Pack 330 (₹1,549) | 1,549 | 43.1 | 0 | 825 | **44.0%** | 416 |
+| Brief Pack 25 (₹179) | 179 | 5.0 | 0 | 62.5 | **62.3%** | 48 |
+| Brief Pack 60 (₹389) | 389 | 10.8 | 0 | 150 | **58.7%** | 104 |
+| Brief Pack 130 (₹799) | 799 | 22.3 | 0 | 325 | **56.5%** | 213 |
+| Brief Pack 330 (₹1,899) | 1,899 | 52.9 | 0 | 825 | **53.8%** | 510 |
 - **All add-ons pass.**
-- **Owner 2026-11-24:** packs re-priced to a **42–45% margin** at full use (was 78–83%). They sell at ₹4.69–4.76 a credit, never below the cheapest plan rate (Advocate ₹4.66), so packs still don't undercut the plans. At the measured ₹1.6 AI cost the margin is about 63%. The admin hand-sale default (best pack rate) becomes ₹4.69. `brief-pack-margin.test.ts` pins the 42–45% band.
+- **Owner 2026-11-24 (band C, replaces the 42–45% set the same day):** packs at **53–63%** margin at full use, ₹5.75–7.16 a credit (+23% to +54% over the Advocate plan rate ₹4.66). Why:
+    - at 42–45% packs sold at ₹4.69–4.76 a credit, below the Chambers (₹4.85) and Firm (₹4.93) rates, and pack credits last 12 months, not 30 days, so topping up beat upgrading (Advocate + 130 + 60 packs = ₹1,599 for 340 credits vs Chambers ₹1,699 for 350; Chambers + 330 + 60 + 25 = ₹3,652 vs Firm ₹3,699);
+    - packs are bought at the moment of need, so a top-up premium is normal; bigger packs are cheaper per credit but never below any plan rate.
+    - Upgrade check now: Advocate → Chambers credits by packs costs ₹2,066 (vs ₹1,699); Chambers → Firm ₹4,166 (vs ₹3,699).
+    - At the measured ₹1.6 AI cost the margin is 69–75%. Admin hand-sale default (best pack rate) becomes ₹5.75. `brief-pack-margin.test.ts` pins the 53–63% band and the upgrade check.
+    - Orders opened at an earlier v5 price and paid after the change are honoured at that price (`PRIOR_V5_PACK_PRICES`).
 
 ## Competitors (checked 2026-11-16 unless stated)
 "Like-for-like" = AI drafting **plus** practice tools (case diary / cause list / eCourts, limitation, clients, billing), which every DifAi plan includes. Drafting-only tools are listed separately, because they cover only part of what DifAi does.

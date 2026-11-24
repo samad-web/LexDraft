@@ -130,10 +130,10 @@ describe('AC1 the catalogue is exactly the v5 table, and the web mirrors it', ()
     expect(web.map(strip)).toEqual(billing.billingPlans().map((p) => strip(p as unknown as Record<string, unknown>)));
   });
 
-  it('Brief Packs are ₹119 / ₹285 / ₹615 / ₹1,549 + GST for 25 / 60 / 130 / 330 credits, 365 days', () => {
+  it('Brief Packs are ₹179 / ₹389 / ₹799 / ₹1,899 + GST for 25 / 60 / 130 / 330 credits, 365 days', () => {
     expect(plans.BRIEF_PACKS).toEqual({
-      pack_25: { credits: 25, priceInr: 119 }, pack_60: { credits: 60, priceInr: 285 },
-      pack_130: { credits: 130, priceInr: 615 }, pack_330: { credits: 330, priceInr: 1549 },
+      pack_25: { credits: 25, priceInr: 179 }, pack_60: { credits: 60, priceInr: 389 },
+      pack_130: { credits: 130, priceInr: 799 }, pack_330: { credits: 330, priceInr: 1899 },
     });
     expect(plans.BRIEF_PACK_DAYS).toBe(365);
   });
@@ -242,11 +242,11 @@ describe('AC4 the invoice shows taxable = the ex-GST price, CGST+SGST (TN) or IG
     expect(invoiceInsert()!.values.slice(-5)).toEqual([768900, 0, 0, 138402, 907302]);
   });
 
-  it('a Brief Pack (₹119 + GST) is invoiced at ₹119 taxable', async () => {
+  it('a Brief Pack (₹179 + GST) is invoiced at ₹179 taxable', async () => {
     h.useFakeDb = true;
     h.rows = firmRows('Tamil Nadu');
-    await pay({ pricing: 'v5', firm_id: FIRM, pack: 'pack_25' }, 119 * 118);
-    expect(invoiceInsert()!.values.slice(-5)).toEqual([11900, 1071, 1071, 0, 14042]);
+    await pay({ pricing: 'v5', firm_id: FIRM, pack: 'pack_25' }, 179 * 118);
+    expect(invoiceInsert()!.values.slice(-5)).toEqual([17900, 1611, 1611, 0, 21122]);
   });
 
   it('splitTax refuses a taxable value that does not add up to the total (never a wrong invoice)', () => {

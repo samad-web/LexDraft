@@ -109,6 +109,7 @@
 - 2026-11-20 (owner): daily notifications. Morning brief at 07:00 IST every day; on a quiet day it says "No hearings today" + the next hearing. Evening brief of tomorrow's hearings after the 19:00 eCourts run, covering eCourts, manual hearings and Court Diary. It replaces the per-case "Hearing tomorrow" notices to avoid one push per case. There is a per-user switch in Settings (0121).
 
 - 2026-11-24 Brief Packs re-priced to 42–45% margin (owner: "35–45%"; chose the 42–45% option so no pack undercuts plan credits). ₹119/₹285/₹615/₹1,549 + GST.
+- 2026-11-24 (later, owner approved band C): Brief Packs ₹179/₹389/₹799/₹1,899 + GST, 53–63% margin. Reason: at 42–45% packs were cheaper per credit than Chambers/Firm and last 12 months, so topping up beat upgrading. Rule now: moving up a plan must cost less than topping the lower plan up to the same credits (tested). Plans unchanged (owner asked; reviewed OK: 30–37% at full use). Orders opened at an earlier v5 pack price are honoured at that price.
 
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.

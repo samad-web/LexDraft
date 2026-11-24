@@ -53,7 +53,7 @@ async function paidUntil(days: number, plan = 'advocate') {
 async function issue(plan = 'advocate', cycle = 'monthly'): Promise<string> {
   const pack = plan.startsWith('pack_');
   const id = await subscriptionInvoiceService.issueForPayment({
-    firmId, paymentId: `pay_${crypto.randomUUID()}`, amountPaise: pack ? 14042 : 82482, taxablePaise: pack ? 11900 : 69900, subscriptionId: null,
+    firmId, paymentId: `pay_${crypto.randomUUID()}`, amountPaise: pack ? 21122 : 82482, taxablePaise: pack ? 17900 : 69900, subscriptionId: null,
     plan, cycle, seats: pack ? 0 : 1, periodStart: pack ? null : new Date(), periodEnd: pack ? null : new Date(Date.now() + 30 * DAY),
   });
   return id!;
