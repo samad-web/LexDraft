@@ -31,12 +31,14 @@ export const PLANS: Record<PaidPlanId, PaidPlanDef> = {
 /** Munshi (clerk) seat: diary, cause list, eCourts and documents. Any paid plan. GST extra. */
 export const MUNSHI = { monthlyInr: 149, annualInr: 1639, max: 4 } as const;
 
-/** Brief Packs: one-time AI credit top-ups, GST extra, valid 12 months. */
+/** Brief Packs: one-time AI credit top-ups, GST extra, valid 12 months.
+ *  Owner 2026-11-24: 42-45% margin at full use (₹2.5/credit + Razorpay fee), so
+ *  every pack stays near the plan rate (~₹4.7/credit) and never undercuts a plan. */
 export const BRIEF_PACKS: Record<BriefPackId, { credits: number; priceInr: number }> = {
-  pack_25:  { credits: 25,  priceInr: 429 },
-  pack_60:  { credits: 60,  priceInr: 849 },
-  pack_130: { credits: 130, priceInr: 1699 },
-  pack_330: { credits: 330, priceInr: 4249 },
+  pack_25:  { credits: 25,  priceInr: 119 },
+  pack_60:  { credits: 60,  priceInr: 285 },
+  pack_130: { credits: 130, priceInr: 615 },
+  pack_330: { credits: 330, priceInr: 1549 },
 };
 export const BRIEF_PACK_DAYS = 365;
 

@@ -422,3 +422,5 @@
 
 - 2026-11-20 feat(activation-funnel): admin dashboard "Sign-up funnel" — last 8 sign-up weeks (IST): signed up → paid → first draft → active in week 2 → paid again; test/admin/free-launch firms left out. GET /admin/business/funnel (read-only, no migration). Not deployed.
 - 2026-11-20 feat(reminders): Remind me on hearings (automatic, or also at a picked time); Reminders card + Set a reminder on the case page; reminders.due job every 5 min; 19:00 "Hearing tomorrow"; Court Diary "remind N days before" now fires (was saved, never sent); Turn-on-notifications banner + bell row; Android app push via FCM (@capacitor/push-notifications, lib/fcm.ts, /notifications/push/native). Migration 0120 (reminders, push_subscriptions.kind), additive.
+
+- 2026-11-24 feat(brief-pack-pricing): Brief Packs ₹119 / ₹285 / ₹615 / ₹1,549 + GST (25 / 60 / 130 / 330 credits), 42–45% margin at full use (was ₹429 / ₹849 / ₹1,699 / ₹4,249, 78–83%). Admin hand-sale default follows the best pack rate: ₹4.69. Prices come from the API, so web needs no change.

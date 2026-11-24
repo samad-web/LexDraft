@@ -14,7 +14,7 @@ Status: **built 2026-11-16** (owner approved, answers below). Migration **0113**
 1. **Credits 150 / 350 / 750** a month.
 2. **Analytics on every plan:** `analytics.firm` (+ `reports.activity`, which its data route needs) is granted to the Solo and Practice tiers and to the Solo Advocate role (0113). Firm Admin (Managing Partner) and Partner already had it. Practice Group Lead stays without it (0013). A Munshi never gets it. The Firm plan keeps the Firm tier.
 3. **Munshi:** ₹149 + GST a month, ₹1,639 + GST a year, max 4 on every paid plan.
-4. **Brief Packs:** ₹429 / ₹849 / ₹1,699 / ₹4,249 + GST for 25 / 60 / 130 / 330 credits, 365 days.
+4. **Brief Packs:** ₹119 / ₹285 / ₹615 / ₹1,549 + GST for 25 / 60 / 130 / 330 credits, 365 days (owner 2026-11-24: 42–45% margin; was ₹429 / ₹849 / ₹1,699 / ₹4,249).
 5. **Terms bumped** to 1.2 (API `TERMS_VERSION` = web `LEGAL_VERSION`), so every user re-accepts. Wording is "+ GST". The refund rules are unchanged, reworded for the new plans:
     - Advocate (the entry plan, like Sanad/Vakalat): not refundable;
     - Chambers and Firm yearly (like Associates): 7 days if no more than 10 credits were used; monthly: not refundable;
@@ -102,12 +102,12 @@ The AI cost is the planned ₹2.5 a credit (measured ₹1.6 + 50% for redrafts),
 |---|---|---|---|---|---|---|
 | Munshi seat, month | 149 | 4.1 | 50 | 0 (no AI) | **63.7%** | n/a |
 | Munshi seat, year (₹1,639) | 1,639 | 45.6 | 600 | 0 | **60.6%** | n/a |
-| Brief Pack 25 (₹429) | 429 | 11.9 | 0 | 62.5 | **82.6%** | 115 |
-| Brief Pack 60 (₹849) | 849 | 23.6 | 0 | 150 | **79.5%** | 228 |
-| Brief Pack 130 (₹1,699) | 1,699 | 47.3 | 0 | 325 | **78.1%** | 456 |
-| Brief Pack 330 (₹4,249) | 4,249 | 118.3 | 0 | 825 | **77.8%** | 1,142 |
+| Brief Pack 25 (₹119) | 119 | 3.3 | 0 | 62.5 | **44.7%** | 32 |
+| Brief Pack 60 (₹285) | 285 | 7.9 | 0 | 150 | **44.6%** | 76 |
+| Brief Pack 130 (₹615) | 615 | 17.1 | 0 | 325 | **44.4%** | 165 |
+| Brief Pack 330 (₹1,549) | 1,549 | 43.1 | 0 | 825 | **44.0%** | 416 |
 - **All add-ons pass.**
-- Pack credits are deliberately kept **below the floor maximum**. A pack priced per credit under a plan (₹4.66–4.93) would make packs a substitute for the plan. Packs stay at ₹12.9–17.2 a credit, so moving up a plan is always the cheaper way to get more.
+- **Owner 2026-11-24:** packs re-priced to a **42–45% margin** at full use (was 78–83%). They sell at ₹4.69–4.76 a credit, never below the cheapest plan rate (Advocate ₹4.66), so packs still don't undercut the plans. At the measured ₹1.6 AI cost the margin is about 63%. The admin hand-sale default (best pack rate) becomes ₹4.69. `brief-pack-margin.test.ts` pins the 42–45% band.
 
 ## Competitors (checked 2026-11-16 unless stated)
 "Like-for-like" = AI drafting **plus** practice tools (case diary / cause list / eCourts, limitation, clients, billing), which every DifAi plan includes. Drafting-only tools are listed separately, because they cover only part of what DifAi does.

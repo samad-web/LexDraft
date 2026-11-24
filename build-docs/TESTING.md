@@ -752,3 +752,7 @@
 - Browser (mocked API): case page Reminders card + Set a reminder dialog, hearing dialog Remind me (also-at-time), notify banner (hidden when the browser blocks notifications) at 1440 light and 390 dark; no page errors.
 - Android: debug build succeeds with the plugin (google-services.json absent → plugin dormant).
 - Regression: web 430/431, api 1138 pass; the 2 failures (password-rule CRLF mirror, share-links needs apps/api/.env) fail identically on unchanged origin/main.
+
+## brief-pack-pricing (2026-11-24)
+- New brief-pack-margin.test.ts (every pack 42–45% at ₹2.5/credit + Razorpay fee; no pack below the cheapest plan rate; bigger packs never dearer per credit) 6/6; brief-packs, pricing-v5, admin-credit-price updated to the new prices — 71/71.
+- Regression: api unit 1179 pass, 1 suite fails to load without apps/api/.env (share-links, environment); web unit 436/437 — password-rule fails identically on origin/main without this change (pre-existing).
