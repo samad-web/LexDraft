@@ -110,7 +110,7 @@ The AI cost is the planned ₹2.5 a credit (measured ₹1.6 + 50% for redrafts),
 - **Owner 2026-11-24 (band C, replaces the 42–45% set the same day):** packs at **53–63%** margin at full use, ₹5.75–7.16 a credit (+23% to +54% over the Advocate plan rate ₹4.66). Why:
     - at 42–45% packs sold at ₹4.69–4.76 a credit, below the Chambers (₹4.85) and Firm (₹4.93) rates, and pack credits last 12 months, not 30 days, so topping up beat upgrading (Advocate + 130 + 60 packs = ₹1,599 for 340 credits vs Chambers ₹1,699 for 350; Chambers + 330 + 60 + 25 = ₹3,652 vs Firm ₹3,699);
     - packs are bought at the moment of need, so a top-up premium is normal; bigger packs are cheaper per credit but never below any plan rate.
-    - Upgrade check now: Advocate → Chambers credits by packs costs ₹2,066 (vs ₹1,699); Chambers → Firm ₹4,166 (vs ₹3,699).
+    - Upgrade check now: Advocate → Chambers credits by packs costs ₹2,035 (vs ₹1,699); Chambers → Firm ₹4,135 (vs ₹3,699) — cheapest pack mixes (130+25+25+25; 330+25+25+25).
     - At the measured ₹1.6 AI cost the margin is 69–75%. Admin hand-sale default (best pack rate) becomes ₹5.75. `brief-pack-margin.test.ts` pins the 53–63% band and the upgrade check.
     - Orders opened at an earlier v5 price and paid after the change are honoured at that price (`PRIOR_V5_PACK_PRICES`).
 
