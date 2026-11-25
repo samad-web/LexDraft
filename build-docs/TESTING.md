@@ -1,4 +1,10 @@
 # Testing
+## Mark up case files and paper — 2026-11-25
+- API: services/__tests__/review-pages.test.ts 5/5 (image type from bytes incl. HEIC; EXIF orientation 1/6/none; upright 40x20 photo = 595x298 page, turned one = 595x1190; merge keeps order; blank A4; Add page keeps earlier pages). Fixtures made with Pillow (fixtures/photos.ts).
+  - **Failure found and fixed (code):** "SOI not found in JPEG" — pdf-lib reads a Buffer's underlying ArrayBuffer and small Node Buffers share a pooled one; images are now copied before embedding.
+- Web: review-ink.test.ts updated — photos are now reviewable (owner "both"); the old "photo.jpg is not reviewable" assertion described the previous rule. HEIC and text files stay excluded.
+- Local end-to-end (local PG16 + storage, test@ account, 1 temp case; all deleted): 8/8 — a turned phone photo opens (rendered: upright), PDF + photo together = 2 pages, blank sheet in the case, Add page keeps page-1 writing, author-only, handwritten note saves to Documents, HEIC refused with advice, upload unchanged.
+
 ## Hearings in Apple Calendar — 2026-11-25
 - API: services/__tests__/calendar-feed.service.test.ts 7/7 (AC2 valid VCALENDAR + refresh hints, 10:30 IST = 05:00 UTC, no time = all-day across year end, escaping + Tamil + 75-byte folding without broken characters; AC3-AC5 same link per version, Reset changes it, wrong/old/off/bad-id links get nothing).
   - Test fixed (not the code): call counts carried over between tests; mocks now cleared in beforeEach.

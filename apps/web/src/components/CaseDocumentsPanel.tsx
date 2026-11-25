@@ -5,7 +5,7 @@ import type { DocumentRecord } from '@lexdraft/types';
 import { useDocuments, useDeleteDocument } from '@/hooks/useDocuments';
 import { useDeleteDraft } from '@/hooks/useDrafts';
 import { canEditInDifai } from '@/lib/imported-docs';
-import { canReview, reviewErrorText, reviewFromDocument } from '@/lib/review-copy';
+import { blankReview, canReview, reviewErrorText, reviewFromDocument, reviewFromDocuments } from '@/lib/review-copy';
 import { useUIStore } from '@/store/ui';
 import { DocumentViewerModal } from './DocumentViewerModal';
 import { NewDocumentModal } from './NewDocumentModal';
@@ -128,6 +128,16 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
             <Icon name="upload" size={13} /> Upload
           </button>
         </Gate>
+        <Gate feature="drafting.basic">
+          <button
+            type="button" className="btn btn-sm"
+            title="A blank page to write on with the pen (Apple Pencil, finger or mouse), saved with this case"
+            onClick={() => blankReview(matterTitle).then((id) => navigate(`/app/review/${id}`))
+              .catch((e: Error) => showToast({ type: 'amber', text: reviewErrorText(e.message) }))}
+          >
+            <Icon name="edit" size={13} /> New handwritten page
+          </button>
+        </Gate>
       </div>
 
       {/* Type filters */}
@@ -164,6 +174,21 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
                   disabled={selected.size > MAX_SHARE_FILES}>
                   <Icon name="chat" size={13} /> Share {selected.size} on WhatsApp
                 </button>
+                {(() => {
+                  const markable = forMatter.filter((d) => d.id && selected.has(d.id) && canReview(d));
+                  return markable.length > 0 && (
+                    <Gate feature="drafting.basic">
+                      <button
+                        type="button" className="btn btn-sm"
+                        title="Open the selected files (PDFs, Word, photos of paper) as one set of pages to mark with the pen"
+                        onClick={() => reviewFromDocuments(markable.map((d) => d.id!)).then((id) => navigate(`/app/review/${id}`))
+                          .catch((e: Error) => showToast({ type: 'amber', text: reviewErrorText(e.message) }))}
+                      >
+                        <Icon name="edit" size={13} /> Mark up {markable.length > 1 ? `${markable.length} together` : '1'}
+                      </button>
+                    </Gate>
+                  );
+                })()}
                 <button type="button" className="btn btn-sm btn-ghost" onClick={() => setSelected(new Set())}>Clear</button>
                 {selected.size > MAX_SHARE_FILES && <span className="body-sm" role="alert">Up to {MAX_SHARE_FILES} at a time.</span>}
               </>

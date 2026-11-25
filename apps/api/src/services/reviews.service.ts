@@ -4,6 +4,7 @@
 // a pen and margin notes. The source is never changed. Marks are vectors in
 // page-relative units (0-1). "Save to Documents" draws them into the PDF (+ a
 // numbered notes page) as one Documents row per review. No model calls here.
+import type { DocumentRecord } from '@lexdraft/types';
 import crypto from 'node:crypto';
 import { LineCapStyle, PDFDocument, StandardFonts, rgb, type PDFPage } from 'pdf-lib';
 import { db } from '../db/client';
@@ -12,6 +13,7 @@ import { documentsService } from './documents.service';
 import { draftsService } from './drafts.service';
 import { assertMatter, detectKind, fileOf, ImportError, NO_CASE } from './imported-documents.service';
 import { storage } from './storage.service';
+import { appendBlankPage, blankPdf, imageKind, imageToPdf, mergePdfs } from './review-pages';
 
 export const MAX_SNAPSHOT_BYTES = 10 * 1024 * 1024; // JSON body limit is 16 MB (base64)
 const MAX_STROKES = 5000;
@@ -37,6 +39,27 @@ interface Row {
 }
 
 export class ReviewError extends ImportError {}
+
+/** Any file a review can be made of, as PDF: PDF as is; Word via LibreOffice;
+ *  JPEG / PNG photos as upright A4-wide pages; WebP / TIFF via LibreOffice.
+ *  iPhone HEIC can't be read here (the upload picker asks iOS for JPEG). */
+async function asPdf(body: Buffer, name: string): Promise<Buffer> {
+  const img = imageKind(body);
+  if (img === 'heic') throw new ReviewError('heic');
+  try {
+    if (img === 'jpeg' || img === 'png') return await imageToPdf(body, img);
+    if (img === 'webp' || img === 'tiff') return await convertToPdf(body, img);
+  } catch {
+    throw new ReviewError('convert_failed');
+  }
+  const kind = detectKind(body, name);
+  if (kind === 'pdf') return body;
+  try {
+    return await convertToPdf(body, kind);
+  } catch {
+    throw new ReviewError('convert_failed');
+  }
+}
 
 const iso = (v: Date | string | null | undefined) => (v == null ? null : v instanceof Date ? v.toISOString() : v);
 const clamp01 = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0);
@@ -224,21 +247,49 @@ export const reviewsService = {
 
   /** From a case document (PDF copied; Word converted by LibreOffice). */
   async fromDocument(documentId: string, ctx: Ctx): Promise<ReviewDto> {
-    const { rec, body } = await fileOf(documentId, ctx.firmId);
-    const kind = detectKind(body, rec.fileName ?? rec.name);
-    let pdf = body;
-    if (kind !== 'pdf') {
-      try {
-        pdf = await convertToPdf(body, kind);
-      } catch {
-        throw new ReviewError('convert_failed');
-      }
+    return this.fromDocuments([documentId], ctx);
+  },
+
+  /** One or more case files (PDF, Word, photos of paper) as one review, pages in
+   *  the order given (case-markup: "Mark up together"). */
+  async fromDocuments(documentIds: string[], ctx: Ctx): Promise<ReviewDto> {
+    if (!documentIds.length || documentIds.length > 20) throw new ReviewError('too_many_files');
+    const parts: Buffer[] = [];
+    const recs: DocumentRecord[] = [];
+    for (const id of documentIds) {
+      const { rec, body } = await fileOf(id, ctx.firmId);
+      parts.push(await asPdf(body, rec.fileName ?? rec.name));
+      recs.push(rec);
     }
+    const pdf = await mergePdfs(parts);
     if (pdf.length > MAX_SNAPSHOT_BYTES * 2) throw new ReviewError('too_large', 413);
+    const first = recs[0]!.name.replace(/ \(original\)$/, '');
     return insert(ctx, pdf, {
-      title: rec.name.replace(/ \(original\)$/, ''), caseLabel: rec.case || NO_CASE, source: 'document',
-      sourceDocumentId: documentId, pageCount: await pdfPages(pdf),
+      title: recs.length > 1 ? `${first} + ${recs.length - 1} more` : first,
+      caseLabel: recs[0]!.case || NO_CASE, source: 'document',
+      sourceDocumentId: documentIds[0]!, pageCount: await pdfPages(pdf),
     });
+  },
+
+  /** A blank A4 sheet to write on with the pen (a handwritten note for a case). */
+  async blank(matterIn: string, ctx: Ctx): Promise<ReviewDto> {
+    const matter = await assertMatter(matterIn, ctx.firmId);
+    const dated = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+    return insert(ctx, await blankPdf(), {
+      title: `Handwritten note, ${dated}`, caseLabel: matter || NO_CASE, source: 'document', pageCount: 1,
+    });
+  },
+
+  /** One more blank page at the end of any review (more paper). Author only. */
+  async addPage(id: string, ctx: Ctx): Promise<ReviewDto> {
+    const r = await load(id, ctx);
+    own(r, ctx);
+    if (r.page_count >= 200) throw new ReviewError('too_many_pages', 413);
+    const { pdf, pageCount } = await appendBlankPage(await this.snapshot(id, ctx));
+    const sql = sqlOrThrow();
+    await storage().putObject({ key: r.snapshot_key, body: pdf, contentType: 'application/pdf' });
+    await sql`update document_reviews set page_count = ${pageCount} where id = ${r.id}::uuid and firm_id = ${ctx.firmId}::uuid`;
+    return this.get(id, ctx);
   },
 
   async get(id: string, ctx: Ctx): Promise<ReviewDto> {

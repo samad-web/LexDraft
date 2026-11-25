@@ -1,3 +1,6 @@
+import { useNavigate } from 'react-router-dom';
+import { Gate } from './Gate';
+import { canReview, reviewErrorText, reviewFromDocument } from '@/lib/review-copy';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { DocumentRecord } from '@lexdraft/types';
 import { Icon } from '@lexdraft/ui';
@@ -137,6 +140,8 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
   const me = useAuthStore((s) => s.user?.name);
   const showToast = useUIStore((s) => s.showToast);
   const [sharing, setSharing] = useState(false);
+  const [marking, setMarking] = useState(false);
+  const navigate = useNavigate();
   const [pdfLock, setPdfLock] = useState<PdfLock>(PDF_LOCK_OFF);
   const matter = doc?.case && doc.case !== '-' ? doc.case : null;
 
@@ -224,6 +229,23 @@ ${text}`);
             <button type="button" className="btn" onClick={downloadFile}>
               <Icon name="download" size={14} /> Download original
             </button>
+          )}
+          {id && doc && canReview({ ...doc, hasFile }) && (
+            <Gate feature="drafting.basic">
+              <button
+                type="button" className="btn btn-primary" disabled={marking}
+                title="Mark a copy with the pen (Apple Pencil, finger or mouse) and margin notes; this file is not changed"
+                onClick={() => {
+                  setMarking(true);
+                  reviewFromDocument(id)
+                    .then((rid) => { onClose(); navigate(`/app/review/${rid}`); })
+                    .catch((e: Error) => showToast({ type: 'amber', text: reviewErrorText(e.message) }))
+                    .finally(() => setMarking(false));
+                }}
+              >
+                <Icon name="edit" size={14} /> {marking ? 'Opening…' : 'Mark up'}
+              </button>
+            </Gate>
           )}
           <button type="button" className="btn" onClick={onClose}>
             Close

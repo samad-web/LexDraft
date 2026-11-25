@@ -1,3 +1,6 @@
+import { useNavigate } from 'react-router-dom';
+import { useConfirm } from './ConfirmDialog';
+import { canReview, reviewErrorText, reviewFromDocument } from '@/lib/review-copy';
 import { useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react';
 import { Icon } from '@lexdraft/ui';
 import { useCreateDocument } from '@/hooks/useDocuments';
@@ -11,7 +14,9 @@ interface Props {
 }
 
 const MAX_FILE_BYTES = 12 * 1024 * 1024; // 12 MB binary, ~16 MB base64.
-const ACCEPTED = '.pdf,.doc,.docx,.txt,.rtf,.png,.jpg,.jpeg,.tif,.tiff,.heic,.webp';
+// No .heic: without it iOS converts iPhone photos to JPEG, which every browser
+// shows and the pen can mark up (case-markup).
+const ACCEPTED = '.pdf,.doc,.docx,.txt,.rtf,.png,.jpg,.jpeg,.tif,.tiff,.webp';
 
 interface PickedFile {
   name: string;
@@ -72,6 +77,8 @@ function inferType(filename: string): string {
 export function NewDocumentModal({ open, onClose, defaultCase }: Props) {
   const create = useCreateDocument();
   const showToast = useUIStore((s) => s.showToast);
+  const confirm = useConfirm();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState('');
@@ -167,6 +174,22 @@ export function NewDocumentModal({ open, onClose, defaultCase }: Props) {
       });
       reset();
       onClose();
+      // case-markup: straight into the pen screen if they want to mark it now.
+      if (created.id && picked && canReview({ hasFile: true, fileName: picked.name, fileMime: picked.mime })) {
+        const now = await confirm({
+          title: 'Mark it up now?',
+          message: 'Open it to mark with the pen (Apple Pencil, finger or mouse) and add margin notes. The uploaded file is kept as it is.',
+          confirmLabel: 'Mark up now',
+          cancelLabel: 'Later',
+        });
+        if (now) {
+          try {
+            navigate(`/app/review/${await reviewFromDocument(created.id)}`);
+          } catch (e) {
+            showToast({ type: 'amber', text: reviewErrorText((e as Error).message) });
+          }
+        }
+      }
     } catch (err) {
       const msg =
         (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error

@@ -87,7 +87,11 @@ describe('AC8: Review on case files', () => {
   it('offered on PDF / Word files with a file; an existing review opens instead', () => {
     expect(canReview({ hasFile: true, fileName: 'Petition.pdf' })).toBe(true);
     expect(canReview({ hasFile: true, fileName: 'old.DOC' })).toBe(true);
-    expect(canReview({ hasFile: true, fileName: 'photo.jpg', fileMime: 'image/jpeg' })).toBe(false);
+    // case-markup (owner 2026-11-25): photos of paper documents can be marked up too
+    expect(canReview({ hasFile: true, fileName: 'notice.jpg', fileMime: 'image/jpeg' })).toBe(true);
+    expect(canReview({ hasFile: true, fileName: 'scan.png' })).toBe(true);
+    expect(canReview({ hasFile: true, fileName: 'IMG_1.heic', fileMime: 'image/heic' })).toBe(false);
+    expect(canReview({ hasFile: true, fileName: 'notes.txt', fileMime: 'text/plain' })).toBe(false);
     expect(canReview({ hasFile: false, fileName: 'x.pdf' })).toBe(false);
     expect(canReview({ kind: 'draft', hasFile: true, fileName: 'x.pdf' })).toBe(false);
     expect(canReview({ hasFile: true, fileName: 'x.pdf', reviewId: 'r1' })).toBe(false);
