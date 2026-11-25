@@ -27,6 +27,35 @@ function keyBytes(base64url: string): ArrayBuffer {
   return out.buffer;
 }
 
+/** Rejects when `p` takes longer than `ms` (a wait must never hang the button). */
+export function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${what} timed out`)), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
+/** Turn notifications on. Must run from a tap. iPhone / iPad only show the
+ *  permission question when it is asked straight from the tap, before any
+ *  network wait (asked after one, iOS may never answer and the button hung on
+ *  "Turning on…"), so permission comes first and every later wait has a limit. */
+export async function enablePush(): Promise<PushState> {
+  const permission = Notification.requestPermission();
+  const key = api.get<{ publicKey: string | null }>('/notifications/push/key');
+  key.catch(() => undefined); // read below; never an unhandled rejection
+  const perm = await withTimeout(permission, 120_000, 'permission').catch(() => 'default' as NotificationPermission);
+  if (perm !== 'granted') return perm === 'denied' ? 'blocked' : 'off';
+  const { publicKey } = await withTimeout(key, 20_000, 'push key');
+  if (!publicKey) return 'unavailable';
+  const reg = await withTimeout(navigator.serviceWorker.register('/sw.js'), 20_000, 'worker');
+  await withTimeout(navigator.serviceWorker.ready, 20_000, 'worker ready');
+  const sub = (await reg.pushManager.getSubscription())
+    ?? await withTimeout(reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) }), 30_000, 'subscribe');
+  const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
+  await api.post('/notifications/push/subscription', { endpoint: json.endpoint, keys: json.keys });
+  return 'on';
+}
+
 export function usePushNotifications() {
   const [state, setState] = useState<PushState>('off');
   const [busy, setBusy] = useState(false);
@@ -45,18 +74,10 @@ export function usePushNotifications() {
   const enable = useCallback(async (): Promise<PushState> => {
     setBusy(true);
     try {
-      const { publicKey } = await api.get<{ publicKey: string | null }>('/notifications/push/key');
-      if (!publicKey) { setState('unavailable'); return 'unavailable'; }
-      const perm = await Notification.requestPermission();
-      if (perm !== 'granted') { const s: PushState = perm === 'denied' ? 'blocked' : 'off'; setState(s); return s; }
-      const reg = await navigator.serviceWorker.register('/sw.js');
-      await navigator.serviceWorker.ready;
-      const sub = (await reg.pushManager.getSubscription())
-        ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) });
-      const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-      await api.post('/notifications/push/subscription', { endpoint: json.endpoint, keys: json.keys });
-      setState('on');
-      return 'on';
+      // A failure or time-out ends as 'unavailable' (a message), never a stuck button.
+      const s = await enablePush().catch((): PushState => 'unavailable');
+      setState(s);
+      return s;
     } finally {
       setBusy(false);
     }

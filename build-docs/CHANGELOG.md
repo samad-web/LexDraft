@@ -1,4 +1,6 @@
 # Changelog
+- Word files open on screen in the document viewer (converted to PDF pages); notification box on iPhone/iPad: permission asked straight from the tap and no endless waits; sheet fits Safari's toolbar. features/document-preview.md. Not deployed.
+
 - iOS: no blank space above the header or below the footer when scrolling past the top/bottom (bounce off on iOS; Safari's bar colour follows the page in light and dark). Not deployed.
 
 - Edge swipe for the menu (2026-11-25, owner): swipe in from the left edge (or tap the new edge tab on phones, or swipe from the iPad icon rail) to open the menu; swipe back to close. features/ios-sidebar-swipe.md. Not deployed.

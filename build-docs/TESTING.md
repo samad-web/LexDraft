@@ -1,4 +1,12 @@
 # Testing
+## Word files open on screen + notification box on iOS — 2026-11-25
+- Word preview, local real run (local PG16 + LibreOffice, test@ account; deleted after): 4/4 — .docx → PDF (4.6 s locally), .doc → PDF, PDF returned as is, another firm 404.
+- Viewer in a browser (simulated server): iPhone (WebKit) shows the Word file as a PDF frame, computer (Chrome) draws the page; no "isn't available" message; Mark up shown; no page errors. Screenshot checked.
+  - Found while testing: the PDF-lock option appeared for Word files once they displayed as PDF; display is now separate from the file type (`showAsPdf`).
+- Notification box: WebKit iPhone / iPad / iPad landscape 21/21 (opens, fits, list scrolls, tap outside closes, tapping a notification opens it, page stays responsive). The hang wasn't reproducible in WebKit; the fix targets the iOS cause in code: push permission was requested AFTER a network call (iOS only answers when asked straight from the tap), and `serviceWorker.ready` had no time limit. lib/__tests__/push-enable.test.ts 4/4 (permission first; denied/dismissed; a never-ready worker times out instead of hanging; withTimeout). Sheet height 80dvh, list scroll contained.
+  - My first test run "reproduced" a hang that was my test tapping inside the 80%-height sheet; fixed the test's tap point.
+- Full suites: API 105/105 files, 1223 pass; web 55/57 (same 2 environmental); swipe 10/10 and review 13/13 WebKit re-runs pass; vite build ok.
+
 ## No blank space when scrolling on iOS — 2026-11-25
 - Web: ios.test.ts +1 (AC6: iOS-only overscroll rule present), theme-color.test.ts 1/1 (AC7: tint = page background; fallback only without one).
 - WebKit (iPhone 15 preset): light theme tint = page background rgb(244,244,243); switching to dark updates it to rgb(11,11,11).
