@@ -1,4 +1,12 @@
 # Testing
+## Review copy — 2026-11-25
+- API: services/__tests__/reviews.service.test.ts 11/11 (caps on marks/notes, rotation mapping for 0/90/180/270, flatten draws marks + pins + notes page, LibreOffice down still saves, rotated scan, notes HTML escaped).
+- Web: lib/__tests__/review-ink.test.ts 10/10 (AC2 palm rejection + stylus touch, AC3 page-relative points, jitter + 2,000-point cap, eraser at two widths, undo/redo, AC6 excerpt + paragraph match, AC8 Review only on PDF/Word, errors worded).
+- Local end-to-end (local PG16 with 0123, real LibreOffice, storage with a temp encryption key; test@ account + 1 temp case; all deleted): 15/15 — review from a draft (snapshot = draft PDF), Tamil note saved, teammate view-only (403 on save), other firm 404, Save to Documents twice = one row, notes page made, row carries reviewId, draft-changed flag, review from a Word file (file unchanged), delete keeps the saved PDF. Exported PDF rendered and inspected: red strike, yellow highlight, blue tick and pin in place; Tamil note prints.
+  - **Failure found and fixed:** the notes page read "1. 1." (LibreOffice numbers an `<ol>` itself). Now plain paragraphs.
+- Full suites: API 103/103 files, 1210 pass / 4 skipped; web 51/53 files, the 2 failures environmental as before (password-rule CRLF, share-link with local .env). tsc api + web clean; vite build ok.
+- Not run: real iPad + Apple Pencil, signed-in browser E2E (no local E2E account). The Pencil/finger split relies on Safari's `touchType: 'stylus'`; owner to try on an iPad.
+
 ## Save as case note — 2026-11-23
 - API: lib/__tests__/text-extraction-doc.test.ts 4/4 (AC5 .doc by mime or name, unconvertible .doc reported, AC6 .docx unchanged, msword accepted / unknown refused).
 - Web: components/__tests__/save-as-note.test.ts 3/3 (AC1 one note per case, AC4 partial failure names the case, AC3 limit mirrors the API's 50,000).

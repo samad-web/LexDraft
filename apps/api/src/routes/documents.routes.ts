@@ -2,6 +2,7 @@ import { Router, raw } from 'express';
 import { z } from 'zod';
 import crypto from 'node:crypto';
 import type { DocumentRecord, SavedDraft } from '@lexdraft/types';
+import { reviewsService } from '../services/reviews.service';
 import { documentsService } from '../services/documents.service';
 import { draftsService } from '../services/drafts.service';
 import { firmIdForUser } from '../services/tenant';
@@ -76,7 +77,7 @@ documentsRouter.get('/', requireFeature('shared.documents'), async (req, res, ne
       documentsService.list(firmId),
       userId ? draftsService.list({ userId }) : Promise.resolve([]),
     ]);
-    res.json({ items: listWithDrafts(docs, drafts) });
+    res.json({ items: listWithDrafts(docs, drafts, await reviewsService.byResultDocument(firmId)) });
   } catch (err) {
     next(err);
   }
@@ -86,10 +87,18 @@ documentsRouter.get('/', requireFeature('shared.documents'), async (req, res, ne
  *  draft's edited Word copy is a real file row (import-edit-document), so that
  *  row is listed — carrying `draftId` so Edit opens the draft — instead of a
  *  second, file-less "draft" row. */
-export function listWithDrafts(docs: DocumentRecord[], drafts: SavedDraft[]): DocumentRecord[] {
+export function listWithDrafts(
+  docs: DocumentRecord[],
+  drafts: SavedDraft[],
+  /** review-copy: an exported review PDF -> its review, for "Open review". */
+  reviewByDoc: ReadonlyMap<string, string> = new Map(),
+): DocumentRecord[] {
   const draftByEdited = new Map(drafts.filter((d) => d.editedDocumentId).map((d) => [d.editedDocumentId!, d.id]));
   const docIds = new Set(docs.map((d) => d.id));
-  const listed = docs.map((d) => (d.id && draftByEdited.has(d.id) ? { ...d, draftId: draftByEdited.get(d.id)! } : d));
+  const listed = docs.map((d) => {
+    const withDraft = d.id && draftByEdited.has(d.id) ? { ...d, draftId: draftByEdited.get(d.id)! } : d;
+    return d.id && reviewByDoc.has(d.id) ? { ...withDraft, reviewId: reviewByDoc.get(d.id)! } : withDraft;
+  });
   const draftDocs: DocumentRecord[] = drafts
     .filter((d) => !d.editedDocumentId || !docIds.has(d.editedDocumentId))
     .map((d) => ({

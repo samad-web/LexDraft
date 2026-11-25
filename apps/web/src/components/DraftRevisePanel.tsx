@@ -39,7 +39,8 @@ export interface RedraftRequest {
   id: number;
   instruction: string;
   focus?: { from: number; to: number };
-  source: 'review';
+  /** 'review' = an AI-review fix; 'advocate' = their own margin note (exact edits stay free). */
+  source: 'review' | 'advocate';
   /** Shown above the proposal, e.g. "Fix from review: Limitation". */
   label?: string;
 }
@@ -107,7 +108,7 @@ export function DraftRevisePanel({
 
   const submit = async (
     text: string,
-    opts: { focus?: { from: number; to: number }; source?: 'review'; label?: string } = {},
+    opts: { focus?: { from: number; to: number }; source?: 'review' | 'advocate'; label?: string } = {},
   ) => {
     const ins = text.trim();
     if (ins.length < 3 || busy) return;

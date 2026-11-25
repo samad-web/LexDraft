@@ -115,7 +115,7 @@ export async function assertMatter(matter: string, firmId: string | null): Promi
   return m;
 }
 
-async function fileOf(documentId: string, firmId: string | null): Promise<{ rec: DocumentRecord; body: Buffer }> {
+export async function fileOf(documentId: string, firmId: string | null): Promise<{ rec: DocumentRecord; body: Buffer }> {
   const rec = await documentsService.get(documentId, firmId);
   if (!rec) throw new ImportError('document_not_found', 404);
   const key = await documentsService.getStorageKey(documentId, firmId);

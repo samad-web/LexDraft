@@ -204,7 +204,13 @@ export async function convertDocToDocx(doc: Buffer): Promise<Buffer> {
   return withConvertLock(() => _convertInner(doc, 'doc', 'docx'));
 }
 
-async function _convertInner(input: Buffer, from: 'docx' | 'doc', to: 'pdf' | 'docx'): Promise<Buffer> {
+/** A Word file (.docx / .doc) or an HTML page -> PDF (review-copy: snapshots of
+ *  case documents, and the notes page in Noto fonts). Throws on any failure. */
+export async function convertToPdf(input: Buffer, from: 'docx' | 'doc' | 'html'): Promise<Buffer> {
+  return withConvertLock(() => _convertInner(input, from, 'pdf'));
+}
+
+async function _convertInner(input: Buffer, from: 'docx' | 'doc' | 'html', to: 'pdf' | 'docx'): Promise<Buffer> {
   // Per-conversion working dir for the input/output only; the LibreOffice user
   // PROFILE is the shared warm one (WARM_PROFILE_DIR), created once.
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lexdraft-render-'));

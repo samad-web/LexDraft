@@ -1,4 +1,6 @@
 # Changelog
+- Review copy (2026-11-25, owner): mark a frozen copy of a draft or case PDF/Word file with a pen (Apple Pencil: draws; finger: scrolls; palm ignored), highlighter, eraser, undo/redo and margin notes; saves itself; "Save to Documents" = one PDF per review with the marks drawn in and a notes page (Tamil/Hindi via LibreOffice Noto); teammates view only; notes "Send to Redraft". Migration 0123 document_reviews (local only). features/review-copy.md. Not deployed.
+
 - DEPLOYED 2026-11-23 07:42 UTC (70527fb, api + web; no migration, engine untouched): save as case note. Backup pre-deploy-20261123-073923.dump; rollback lexdraft-api/web:prev-20261123-073923. Smoke: ready db ok, site 200, sign-in 400, case-notes 401 signed out, Google client id + "Save as case note" in build, msword in api.
 
 - Save as case note (2026-11-23, owner): Draft page "Save as case note" saves the document's text as a separate note in each chosen case, Shared or Only me (existing POST /case-notes, no migration); Case Notes upload accepts .doc (LibreOffice -> mammoth in text-extraction). features/save-as-case-note.md.
