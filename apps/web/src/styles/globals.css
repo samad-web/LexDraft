@@ -2106,7 +2106,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
     left: 0;
     bottom: 0;
     width: 100vw;
-    max-height: 80vh;
+    max-height: 80vh; max-height: 80dvh;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     border-bottom: 0;
     padding-bottom: env(safe-area-inset-bottom, 0);
