@@ -1,4 +1,12 @@
 # Testing
+## iPhone / iPad friendly web app — 2026-11-25
+- Web: lib/__tests__/ios.test.ts 7/7 (AC4 iPhone, old iPad, iPadOS-as-Mac with touch, real Mac, Android; AC3 every 100vh has a 100dvh twin; AC1 Home Screen tags, no viewport-fit=cover, manifest standalone).
+- Real browser run (Playwright WebKit = Safari's engine, iPad Pro 11 / iPhone 15 presets; Chrome at 1366x768; server answers simulated, no account): 13/13 — review full-screen; notes behind "Notes" in iPad portrait, column in landscape; fingers scroll natively before any pen; Pencil (pointerType pen) draws a full line (11 points) and autosaves; a finger doesn't draw; Note tool adds a note and opens the panel; note autosaves; no page errors; iPhone no sideways scroll; Chrome mouse draws. Screenshot checked.
+  - **Failures found and fixed:** (1) a Pencil stroke saved as one dot: `getCoalescedEvents()` returned an empty list, so every move was dropped; now falls back to the event itself. (2) WebKit refused pointer capture for the pen; that threw and stopped the stroke; now ignored. (3) Back arrow pointed right.
+  - **Open:** Playwright's Windows WebKit hangs on any signed-in page at desktop sizes (also on main before this change; mobile presets fine; not scrollbars). Needs a check in real Safari on a Mac.
+- Review copy auto-save (c93fd47): covered by the same run (save then review) via existing tests; tsc clean.
+- Full suite: web 52/54 files (the same 2 environmental failures: password-rule CRLF, share-link with a local .env); tsc clean; vite build ok.
+
 ## Review copy — 2026-11-25
 - API: services/__tests__/reviews.service.test.ts 11/11 (caps on marks/notes, rotation mapping for 0/90/180/270, flatten draws marks + pins + notes page, LibreOffice down still saves, rotated scan, notes HTML escaped).
 - Web: lib/__tests__/review-ink.test.ts 10/10 (AC2 palm rejection + stylus touch, AC3 page-relative points, jitter + 2,000-point cap, eraser at two widths, undo/redo, AC6 excerpt + paragraph match, AC8 Review only on PDF/Word, errors worded).

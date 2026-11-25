@@ -1,3 +1,4 @@
+import { isIosDevice, isStandalone } from '@/lib/ios';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 
@@ -8,8 +9,9 @@ import { api } from '@/lib/api';
 export type PushState = 'unsupported' | 'ios-install' | 'off' | 'on' | 'blocked' | 'unavailable';
 
 const supported = () => typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
-const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
-const standalone = () => window.matchMedia?.('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true;
+// iPadOS reports itself as a Mac: lib/ios tells them apart (ios-web-app).
+const isIos = () => isIosDevice();
+const standalone = () => isStandalone();
 
 /** Register the worker once (no caching in it; push only). */
 export function registerPushWorker(): void {

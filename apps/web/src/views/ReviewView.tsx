@@ -45,6 +45,14 @@ export function ReviewView() {
   const [status, setStatus] = useState<'saved' | 'saving' | 'unsaved' | 'failed'>('saved');
   const [exporting, setExporting] = useState(false);
   const [openNote, setOpenNote] = useState<string | null>(null);
+  // iPhone and iPad portrait: notes slide up over the pages instead of a column.
+  const [narrow, setNarrow] = useState(() => window.innerWidth < 900);
+  const [notesOpen, setNotesOpen] = useState(false);
+  useEffect(() => {
+    const on = () => setNarrow(window.innerWidth < 900);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const lastSaved = useRef<string>('');
@@ -75,7 +83,13 @@ export function ReviewView() {
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setWidth(Math.min(el.clientWidth - 24, 920)));
+    // The scroller always keeps its scrollbar space (overflowY: scroll), and tiny
+    // changes are ignored: otherwise, with desktop scrollbars, a scrollbar
+    // appearing narrows the pages, which removes it, which widens them... forever.
+    const ro = new ResizeObserver(() => {
+      const next = Math.min(el.clientWidth - 24, 920);
+      setWidth((w) => (Math.abs(w - next) < 2 ? w : next));
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, [pages.length]);
@@ -171,15 +185,20 @@ export function ReviewView() {
 
   const edit = review.canEdit;
   return (
-    <div className="rv" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    <div className="rv" style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <header className="row" style={{ gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--border-default)', flexWrap: 'wrap', alignItems: 'center' }}>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => navigate(-1)} aria-label="Back"><Icon name="chevron" size={13} /> Back</button>
+        <button type="button" className="btn btn-sm btn-ghost" onClick={() => navigate(-1)} aria-label="Back"><Icon name="chevron" size={13} style={{ transform: 'rotate(180deg)' }} /> Back</button>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{review.title}</div>
           <div className="muted" style={{ fontSize: 12 }}>
             Review copy · {review.case !== '-' ? review.case : 'No case'} · {edit ? { saved: 'All marks saved', saving: 'Saving…', unsaved: 'Saving soon…', failed: 'Not saved, retrying' }[status] : 'View only (made by a teammate)'}
           </div>
         </div>
+        {narrow && (
+          <button type="button" className="btn btn-sm" onClick={() => setNotesOpen((o) => !o)} aria-expanded={notesOpen}>
+            Notes ({numbered.length})
+          </button>
+        )}
         {edit && (
           <>
             <button type="button" className="btn btn-sm btn-primary" onClick={exportReview} disabled={exporting}>
@@ -232,8 +251,8 @@ export function ReviewView() {
         </div>
       )}
 
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexWrap: 'wrap' }}>
-        <div ref={scrollerRef} style={{ flex: '1 1 560px', minWidth: 0, overflow: 'auto', padding: 12, background: 'var(--bg-surface-2)', height: '100%' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', position: 'relative' }}>
+        <div ref={scrollerRef} style={{ flex: 1, minWidth: 0, overflowX: 'auto', overflowY: 'scroll', WebkitOverflowScrolling: 'touch', padding: 12, background: 'var(--bg-surface-2)', height: '100%' }}>
           {width > 0 && pages.map((pg, i) => (
             <ReviewPage
               key={i}
@@ -253,16 +272,23 @@ export function ReviewView() {
                 const nid = crypto.randomUUID();
                 change({ ...state, notes: [...state.notes, { id: nid, page: i, x, y, text: '', excerpt }] });
                 setOpenNote(nid);
+                setNotesOpen(true);
               }}
-              onOpenNote={setOpenNote}
+              onOpenNote={(nid) => { setOpenNote(nid); setNotesOpen(true); }}
             />
           ))}
         </div>
 
-        <aside aria-label="Margin notes" style={{ flex: '0 1 320px', minWidth: 260, borderLeft: '1px solid var(--border-default)', overflow: 'auto', padding: 12, height: '100%' }}>
+        <aside
+          aria-label="Margin notes"
+          hidden={narrow && !notesOpen}
+          style={narrow
+            ? { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '55%', overflow: 'auto', padding: 12, background: 'var(--bg-base)', borderTop: '1px solid var(--border-default)', boxShadow: '0 -8px 24px rgba(0,0,0,0.12)', zIndex: 2 }
+            : { flex: '0 0 320px', borderLeft: '1px solid var(--border-default)', overflow: 'auto', padding: 12, height: '100%' }}
+        >
           <div style={{ fontWeight: 600, marginBottom: 4 }}>Margin notes</div>
           <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
-            {edit ? 'Choose Note, then tap beside a line. Type or use the keyboard’s dictation.' : 'Notes from the author of this review.'}
+            {edit ? 'Choose Note, then tap beside a line. Type, use the keyboard’s dictation, or write with Apple Pencil (Scribble).' : 'Notes from the author of this review.'}
           </p>
           {numbered.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No notes yet.</p>}
           {numbered.map((n) => (
