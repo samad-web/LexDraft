@@ -1,4 +1,10 @@
 # Testing
+## Edge swipe for the menu — 2026-11-25
+- Web: lib/__tests__/edge-swipe.test.ts 4/4 (AC1 start zone + 40 px sideways; AC2 close by swiping back; AC3/AC4 not on pen screen/dialogs, drawer widths 390/834 yes, 1024 no).
+- WebKit run (iPhone 15 / iPad Pro 11 presets, Chrome 1366; simulated server, no account): 10/10 — tab shows, edge swipe opens, swipe back closes, mid-page swipe and a 30 px drag don't open, tapping the tab opens, iPad has no tab and the rail swipe opens, computer has no tab. Screenshots checked (closed tab, open menu).
+  - Test fixes (not code): the Calendar page crashed on my simulated server (no `hearings` list), so the run uses Documents; two stray swipes in the script had opened the menu and hidden the tab.
+- Full web suite 53/55 files (same 2 environmental failures); tsc clean; vite build ok.
+
 ## Mark up case files and paper — 2026-11-25
 - API: services/__tests__/review-pages.test.ts 5/5 (image type from bytes incl. HEIC; EXIF orientation 1/6/none; upright 40x20 photo = 595x298 page, turned one = 595x1190; merge keeps order; blank A4; Add page keeps earlier pages). Fixtures made with Pillow (fixtures/photos.ts).
   - **Failure found and fixed (code):** "SOI not found in JPEG" — pdf-lib reads a Buffer's underlying ArrayBuffer and small Node Buffers share a pooled one; images are now copied before embedding.
