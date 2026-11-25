@@ -39,7 +39,7 @@ An advocate reads a draft line by line and wants to circle, strike, underline or
 - `App.tsx`: one route. No change to drafts, documents, credits.
 
 ## Edge cases
-- Unsaved draft: Review copy asks to save first (the review needs the draft to detect changes and to Redraft).
+- Unsaved or edited draft: Review copy saves it automatically first (owner 2026-11-25), so the review matches the saved draft; a failed save shows the usual error and makes no review.
 - Snapshot over 15 MB or not a PDF: refused. Word file LibreOffice can't convert: "couldn't make a review copy of this file".
 - Another firm's review/document: 404. A team member opening someone's review: view only (toolbar hidden), can still export? No: only the author saves to Documents.
 - Concurrent saves from two tabs: last write wins (marks are the author's own).
