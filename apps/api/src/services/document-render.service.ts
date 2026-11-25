@@ -195,19 +195,31 @@ function withConvertLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function convertDocxToPdf(docx: Buffer): Promise<Buffer> {
-  return withConvertLock(() => _convertInner(docx, 'docx', 'pdf'));
+  return withConvertLock(() => retryOnce(() => _convertInner(docx, 'docx', 'pdf')));
 }
 
 /** An old Word .doc -> .docx (import-edit-document). Same bounds as the PDF render;
  *  convert only, macros never run. Throws on any failure. */
 export async function convertDocToDocx(doc: Buffer): Promise<Buffer> {
-  return withConvertLock(() => _convertInner(doc, 'doc', 'docx'));
+  return withConvertLock(() => retryOnce(() => _convertInner(doc, 'doc', 'docx')));
 }
 
 /** A Word file (.docx / .doc) or an HTML page -> PDF (review-copy: snapshots of
  *  case documents, and the notes page in Noto fonts). Throws on any failure. */
 export async function convertToPdf(input: Buffer, from: 'docx' | 'doc' | 'html'): Promise<Buffer> {
-  return withConvertLock(() => _convertInner(input, from, 'pdf'));
+  return withConvertLock(() => retryOnce(() => _convertInner(input, from, 'pdf')));
+}
+
+/** The first conversion after a container start can exit 1 while LibreOffice
+ *  builds its (cold) profile; the same call then succeeds (seen on prod
+ *  2026-11-25). Retry once, but never after a timeout (that one hung). */
+export async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (/timed out/.test((err as Error).message)) throw err;
+    return fn();
+  }
 }
 
 async function _convertInner(input: Buffer, from: 'docx' | 'doc' | 'html', to: 'pdf' | 'docx'): Promise<Buffer> {

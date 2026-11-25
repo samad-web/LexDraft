@@ -117,3 +117,16 @@ describeConvert('convertDocxToPdf (fake soffice)', () => {
     expect(await countTmpRenderDirs()).toBe(0);
   });
 });
+
+describe('retryOnce (cold LibreOffice profile after a restart)', () => {
+  it('retries a failed conversion once, but not a timeout', async () => {
+    const { retryOnce } = await import('../document-render.service');
+    let n = 0;
+    expect(await retryOnce(async () => { n += 1; if (n === 1) throw new Error('soffice exited 1'); return 'pdf'; })).toBe('pdf');
+    expect(n).toBe(2);
+    let m = 0;
+    await expect(retryOnce(async () => { m += 1; throw new Error('soffice conversion timed out after 30000ms'); })).rejects.toThrow('timed out');
+    expect(m).toBe(1);
+    await expect(retryOnce(async () => { throw new Error('still broken'); })).rejects.toThrow('still broken');
+  });
+});
