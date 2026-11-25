@@ -9,7 +9,7 @@
 import type { DocumentRecord, SavedDraft } from '@lexdraft/types';
 import { db } from '../db/client';
 import { extractText } from '../lib/text-extraction';
-import { convertDocToDocx } from './document-render.service';
+import { convertDocToDocx, convertToPdf } from './document-render.service';
 import { documentsService } from './documents.service';
 import { draftsService } from './drafts.service';
 import { engineClient, type EngineBlock } from './engine-client.service';
@@ -125,6 +125,21 @@ export async function fileOf(documentId: string, firmId: string | null): Promise
 }
 
 const baseName = (fileName: string) => fileName.replace(/\.[a-z0-9]{1,5}$/i, '').trim().slice(0, 150) || 'Document';
+
+/** document-preview: a firm document as PDF pages for the viewer — a PDF as
+ *  it is, a Word file (.docx / .doc) converted by LibreOffice. Other types (and
+ *  a Word file LibreOffice can't read) are refused; the viewer then offers
+ *  Download as before. No model call. */
+export async function documentPreviewPdf(documentId: string, firmId: string | null): Promise<Buffer> {
+  const { rec, body } = await fileOf(documentId, firmId);
+  const kind = detectKind(body, rec.fileName ?? rec.name);
+  if (kind === 'pdf') return body;
+  try {
+    return await convertToPdf(body, kind);
+  } catch {
+    throw new ImportError('preview_failed');
+  }
+}
 
 export const importedDocumentsService = {
   /** A firm document already in DifAi (Case -> Documents "Edit in DifAi", or a

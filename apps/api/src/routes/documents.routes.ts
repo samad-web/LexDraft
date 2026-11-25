@@ -2,6 +2,7 @@ import { Router, raw } from 'express';
 import { z } from 'zod';
 import crypto from 'node:crypto';
 import type { DocumentRecord, SavedDraft } from '@lexdraft/types';
+import { documentPreviewPdf, ImportError } from '../services/imported-documents.service';
 import { reviewsService } from '../services/reviews.service';
 import { documentsService } from '../services/documents.service';
 import { draftsService } from '../services/drafts.service';
@@ -289,6 +290,21 @@ documentsRouter.delete(
     }
   },
 );
+
+// document-preview: Word files open on screen (as PDF pages) like PDFs do;
+// before this the viewer could only offer Download for a .docx.
+documentsRouter.get('/:id/preview', requireFeature('shared.documents'), validate({ params: idParam }), async (req, res, next) => {
+  try {
+    const firmId = await firmIdForUser(req.user?.id);
+    const pdf = await documentPreviewPdf(strParam(req.params['id']), firmId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.send(pdf);
+  } catch (err) {
+    if (err instanceof ImportError) { res.status(err.status).json({ error: err.code }); return; }
+    next(err);
+  }
+});
 
 documentsRouter.get('/:id/download-url', requireFeature('shared.documents'), validate({ params: idParam }), async (req, res, next) => {
   try {
