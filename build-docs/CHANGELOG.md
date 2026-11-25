@@ -1,5 +1,9 @@
 # Changelog
-- Save as case note (2026-11-23, owner): Draft page "Save as case note" saves the document's text as a separate note in each chosen case, Shared or Only me (existing POST /case-notes, no migration); Case Notes upload accepts .doc (LibreOffice -> mammoth in text-extraction). features/save-as-case-note.md. Not deployed.
+- Review copy (2026-11-25, owner): mark a frozen copy of a draft or case PDF/Word file with a pen (Apple Pencil: draws; finger: scrolls; palm ignored), highlighter, eraser, undo/redo and margin notes; saves itself; "Save to Documents" = one PDF per review with the marks drawn in and a notes page (Tamil/Hindi via LibreOffice Noto); teammates view only; notes "Send to Redraft". Migration 0123 document_reviews (local only). features/review-copy.md. Not deployed.
+
+- DEPLOYED 2026-11-23 07:42 UTC (70527fb, api + web; no migration, engine untouched): save as case note. Backup pre-deploy-20261123-073923.dump; rollback lexdraft-api/web:prev-20261123-073923. Smoke: ready db ok, site 200, sign-in 400, case-notes 401 signed out, Google client id + "Save as case note" in build, msword in api.
+
+- Save as case note (2026-11-23, owner): Draft page "Save as case note" saves the document's text as a separate note in each chosen case, Shared or Only me (existing POST /case-notes, no migration); Case Notes upload accepts .doc (LibreOffice -> mammoth in text-extraction). features/save-as-case-note.md.
 
 - DEPLOYED 2026-11-23 07:02 UTC (e22a280, api + web + engine; 0122 applied with owner OK): open and edit your own document. Backup pre-0122-20261123-065249.dump; rollback lexdraft-api/web/engine:prev-20261123-065249. Smoke: ready db ok, site 200, sign-in 400, document/open + edited-file 401 signed out, live read-docx ok, Google client id + "Open a document" in build.
 
@@ -420,3 +424,9 @@
 
 - 2026-11-20 feat(activation-funnel): admin dashboard "Sign-up funnel" — last 8 sign-up weeks (IST): signed up → paid → first draft → active in week 2 → paid again; test/admin/free-launch firms left out. GET /admin/business/funnel (read-only, no migration). Not deployed.
 - 2026-11-20 feat(reminders): Remind me on hearings (automatic, or also at a picked time); Reminders card + Set a reminder on the case page; reminders.due job every 5 min; 19:00 "Hearing tomorrow"; Court Diary "remind N days before" now fires (was saved, never sent); Turn-on-notifications banner + bell row; Android app push via FCM (@capacitor/push-notifications, lib/fcm.ts, /notifications/push/native). Migration 0120 (reminders, push_subscriptions.kind), additive.
+
+- 2026-11-24 feat(brief-pack-pricing): Brief Packs ₹119 / ₹285 / ₹615 / ₹1,549 + GST (25 / 60 / 130 / 330 credits), 42–45% margin at full use (was ₹429 / ₹849 / ₹1,699 / ₹4,249, 78–83%). Admin hand-sale default follows the best pack rate: ₹4.69. Prices come from the API, so web needs no change.
+
+- 2026-11-24 feat(brief-pack-pricing): band C — Brief Packs ₹179 / ₹389 / ₹799 / ₹1,899 + GST (25 / 60 / 130 / 330 credits), 53–63% margin at full use, so upgrading always beats topping up. Admin hand-sale default ₹5.75. Fix: a pack order opened at an earlier v5 price and paid after a price change is granted and invoiced at that price (was: money taken, no credits). Prices come from the API; web unchanged. No migration.
+
+- 2026-11-24 fix(missing-details): typing in "Missing details" no longer re-drafts the document; it updates once on "Update document". Typed values survive closing the popup; the filled count and Update button are pinned at the bottom of the popup.

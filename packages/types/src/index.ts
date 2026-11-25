@@ -120,6 +120,8 @@ export interface DocumentRecord {
   kind?: 'document' | 'draft';
   /** An edited Word copy of the viewer's own imported draft: Edit opens this draft. */
   draftId?: ID;
+  /** review-copy: this PDF is a saved review; "Open review" opens it. */
+  reviewId?: ID;
   /** True when an uploaded file is attached. Set by the list endpoint so the
    *  table can show a file icon without paying the cost of the base64 blob. */
   hasFile?: boolean;

@@ -41,6 +41,8 @@ import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { OpenDocumentModal } from '@/components/OpenDocumentModal';
 import { CopyToCaseModal } from '@/components/CopyToCaseModal';
 import { SaveAsNoteModal } from '@/components/SaveAsNoteModal';
+import { reviewErrorText, reviewFromDraft } from '@/lib/review-copy';
+import { paragraphOf } from '@/lib/review-ink';
 import { Gate } from '@/components/Gate';
 import { useCases } from '@/hooks/useCases';
 import { useMoveDraftToCase, useSaveEditedFile, type OpenedDocument } from '@/hooks/useImportedDocs';
@@ -295,7 +297,8 @@ export function DraftingView() {
   const location = useLocation();
   const navigate = useNavigate();
   const navState = location.state as
-    | { caseContext?: CaseContext; researchCitation?: ResearchCitation; draftId?: string; openDocumentId?: string }
+    | { caseContext?: CaseContext; researchCitation?: ResearchCitation; draftId?: string; openDocumentId?: string;
+        redraftNote?: { text: string; excerpt: string } }
     | null;
 
   // DraftBot-style one-shot modal: content in → document out, no fact sheet.
@@ -310,6 +313,9 @@ export function DraftingView() {
   const [imported, setImported] = useState<{ sourceDocumentId: string; matter: string } | null>(null);
   const [openDocOpen, setOpenDocOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  // review-copy: a margin note sent to Redraft, run once the draft has loaded.
+  const [pendingNote, setPendingNote] = useState<{ text: string; excerpt: string } | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   // The engine-rendered .docx (base64) for the CURRENT engine draft, if any. This is
   // the FILING-grade copy (real Word file, selectable text, correct margins) the
@@ -1300,11 +1306,49 @@ export function DraftingView() {
     if (!incomingDraftId || !incomingDraft.data) return;
     autoLoadedDraftIdRef.current = incomingDraftId;
     handleLoadDraft(incomingDraft.data);
+    if (navState?.redraftNote) setPendingNote(navState.redraftNote);
     // Clear the navigation state so a manual refresh of /app/draft doesn't
     // reload the same draft.
     navigate(location.pathname, { replace: true, state: null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incomingDraftId, incomingDraft.data]);
+
+  // review-copy: run a margin note through Redraft on its paragraph once the
+  // draft's lines are on screen.
+  useEffect(() => {
+    if (!pendingNote || draftParagraphs.length === 0) return;
+    const i = paragraphOf(draftParagraphs, pendingNote.excerpt);
+    setRedraftRequest({
+      id: Date.now(),
+      instruction: i < 0 && pendingNote.excerpt
+        ? `In the paragraph containing "${pendingNote.excerpt}": ${pendingNote.text}`
+        : pendingNote.text,
+      ...(i >= 0 ? { focus: { from: i, to: i } } : {}),
+      source: 'advocate',
+      label: 'From your review note',
+    });
+    setPendingNote(null);
+  }, [pendingNote, draftParagraphs]);
+
+  /** A frozen copy of this draft (the same PDF as Download PDF) to mark up. */
+  const startReview = async () => {
+    if (!currentDraftId || hasLocalEdits) {
+      showToast({ type: 'amber', text: 'Save the draft first, then make a review copy.' });
+      return;
+    }
+    setReviewBusy(true);
+    try {
+      const id = await reviewFromDraft({
+        draftId: currentDraftId, title: activeDocType,
+        matter: draftCase?.title ?? imported?.matter ?? '', pdf: await draftPdfBlob(),
+      });
+      navigate(`/app/review/${id}`);
+    } catch (e) {
+      showToast({ type: 'amber', text: reviewErrorText((e as Error).message) });
+    } finally {
+      setReviewBusy(false);
+    }
+  };
 
   const resetCurrentBrief = () => {
     const sc = resolvedSchemas[docType] ?? DOC_SCHEMAS[docType];
@@ -2213,6 +2257,12 @@ export function DraftingView() {
                       <Icon name="documents" size={13} /> Copy to another case
                     </button>
                   )}
+                  <button
+                    className="btn btn-sm btn-ghost" type="button" onClick={() => void startReview()} disabled={reviewBusy}
+                    title="Mark a copy of this draft with a pen (Apple Pencil) and margin notes; the draft is not changed"
+                  >
+                    <Icon name="edit" size={13} /> {reviewBusy ? 'Preparing…' : 'Review copy'}
+                  </button>
                   <Gate feature="matter.notes.create">
                     <button
                       className="btn btn-sm btn-ghost" type="button" onClick={() => setNoteOpen(true)}

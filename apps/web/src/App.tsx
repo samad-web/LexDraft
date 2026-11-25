@@ -44,6 +44,7 @@ const DashboardView = lazy(() => import('@/views/DashboardView').then((m) => ({ 
 const CasesListView = lazy(() => import('@/views/CasesListView').then((m) => ({ default: m.CasesListView })));
 const CaseDetailView = lazy(() => import('@/views/CaseDetailView').then((m) => ({ default: m.CaseDetailView })));
 const DraftingView = lazy(() => import('@/views/DraftingView').then((m) => ({ default: m.DraftingView })));
+const ReviewView = lazy(() => import('@/views/ReviewView').then((m) => ({ default: m.ReviewView })));
 const ContractReviewView = lazy(() => import('@/views/ContractReviewView').then((m) => ({ default: m.ContractReviewView })));
 const ReviewQueueView = lazy(() => import('@/views/ReviewQueueView').then((m) => ({ default: m.ReviewQueueView })));
 const MockArgumentsView = lazy(() => import('@/views/MockArgumentsView').then((m) => ({ default: m.MockArgumentsView })));
@@ -333,6 +334,7 @@ export function App() {
               <Route path="/app/cases" element={<CasesListView onOpen={(c) => navigate(`/app/cases/${c.id}`)} />} />
               <Route path="/app/cases/:id" element={<CaseDetailView />} />
               <Route path="/app/draft" element={<DraftingView />} />
+              <Route path="/app/review/:id" element={<ReviewView />} />
               <Route path="/app/review" element={<ContractReviewView />} />
               <Route path="/app/review-queue" element={<ReviewQueueView />} />
               <Route path="/app/mock-arguments" element={<ComingSoon feature="Mock Arguments"><MockArgumentsView /></ComingSoon>} />

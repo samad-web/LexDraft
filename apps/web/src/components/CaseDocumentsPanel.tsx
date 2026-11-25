@@ -5,6 +5,7 @@ import type { DocumentRecord } from '@lexdraft/types';
 import { useDocuments, useDeleteDocument } from '@/hooks/useDocuments';
 import { useDeleteDraft } from '@/hooks/useDrafts';
 import { canEditInDifai } from '@/lib/imported-docs';
+import { canReview, reviewErrorText, reviewFromDocument } from '@/lib/review-copy';
 import { useUIStore } from '@/store/ui';
 import { DocumentViewerModal } from './DocumentViewerModal';
 import { NewDocumentModal } from './NewDocumentModal';
@@ -227,6 +228,22 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
               </span>
             )}
             <span className="cs-doc-date">{doc.updated}</span>
+            {doc.id && (doc.reviewId || canReview(doc)) && (
+              <Gate feature="drafting.basic">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost"
+                  onClick={() => (doc.reviewId
+                    ? navigate(`/app/review/${doc.reviewId}`)
+                    : reviewFromDocument(doc.id!).then((id) => navigate(`/app/review/${id}`))
+                      .catch((e: Error) => showToast({ type: 'amber', text: reviewErrorText(e.message) })))}
+                  title={doc.reviewId ? 'Open this review with its marks and notes' : 'Mark a copy of this file with a pen and margin notes (the file is not changed)'}
+                  aria-label={`${doc.reviewId ? 'Open review' : 'Review'}: ${doc.name}`}
+                >
+                  {doc.reviewId ? 'Open review' : 'Review'}
+                </button>
+              </Gate>
+            )}
             {doc.id && (doc.draftId || canEditInDifai(doc)) && (
               <Gate feature="drafting.basic">
                 <button

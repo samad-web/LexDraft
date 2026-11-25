@@ -15,6 +15,7 @@ import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { canEditInDifai } from '@/lib/imported-docs';
+import { canReview, reviewErrorText, reviewFromDocument } from '@/lib/review-copy';
 import { useUIStore } from '@/store/ui';
 
 interface FolderDef {
@@ -310,6 +311,22 @@ export function DocumentsView() {
                                     aria-label={`Send ${d.name} for signature`}
                                   >
                                     <Icon name="check" size={13} />
+                                  </button>
+                                </Gate>
+                              )}
+                              {docId && (d.reviewId || canReview(d)) && (
+                                <Gate feature="drafting.basic">
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-ghost"
+                                    onClick={() => (d.reviewId
+                                      ? navigate(`/app/review/${d.reviewId}`)
+                                      : reviewFromDocument(docId).then((id) => navigate(`/app/review/${id}`))
+                                        .catch((e: Error) => showToast({ type: 'amber', text: reviewErrorText(e.message) })))}
+                                    title={d.reviewId ? 'Open review' : 'Review: mark a copy with a pen and margin notes'}
+                                    aria-label={`${d.reviewId ? 'Open review' : 'Review'}: ${d.name}`}
+                                  >
+                                    <Icon name="edit" size={13} />
                                   </button>
                                 </Gate>
                               )}
