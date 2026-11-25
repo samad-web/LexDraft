@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Gate } from './Gate';
 import { canReview, reviewErrorText, reviewFromDocument } from '@/lib/review-copy';
@@ -104,13 +106,27 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
       ? draft.isError
       : document.isError || (needsPresigned && downloadUrlQuery.isError));
 
-  const isPdf = !!data?.fileMime?.includes('pdf');
   const isImage = !!data?.fileMime?.startsWith('image/');
+  // document-preview: a Word file is shown as PDF pages made by the server.
+  const isWord = /wordprocessingml|msword/i.test(data?.fileMime ?? '') || /\.docx?$/i.test(data?.fileName ?? '');
+  const wordPreview = useQuery({
+    queryKey: ['document-preview', id],
+    queryFn: async () => URL.createObjectURL(await api.getBlob(`/documents/${id}/preview`) as Blob),
+    enabled: open && !isDraft && hasFile && isWord && !!id,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  useEffect(() => () => { if (wordPreview.data) URL.revokeObjectURL(wordPreview.data); }, [wordPreview.data]);
+  const isPdf = !!data?.fileMime?.includes('pdf');
+  // A Word file whose pages are ready is SHOWN like a PDF (sharing, the PDF
+  // lock and downloads still use the original Word file).
+  const showAsPdf = isPdf || (isWord && !!wordPreview.data);
   const hasDraftBody = !!(draftData?.editedHtml?.trim() || draftData?.bodyText?.trim());
 
   // The src used by the iframe/img/download anchor. Prefer the presigned URL
   // when present (newer uploads); fall back to the inline base64 blob URL.
-  const previewUrl = data?.fileBase64 ? fileBlobUrl : downloadUrlQuery.data?.downloadUrl ?? null;
+  const previewUrl = isWord ? wordPreview.data ?? null
+    : data?.fileBase64 ? fileBlobUrl : downloadUrlQuery.data?.downloadUrl ?? null;
 
   const downloadFile = () => {
     if (data?.fileBase64 && data.fileName) {
@@ -257,10 +273,15 @@ ${text}`);
           contained by maxHeight, and long draft text scrolls inside the
           surrounding modal-shell (90vh). Two stacked scroll regions look
           broken on Windows where each renders its own scrollbar gutter. */}
-      <div className={`fm-viewer-stage${hasFile && (isPdf || isImage) ? '' : ' is-text'}`}>
+      <div className={`fm-viewer-stage${hasFile && (showAsPdf || isImage) ? '' : ' is-text'}`}>
         {isLoading && (
           <p className="fm-viewer-msg">
             Loading document<span className="blink" />
+          </p>
+        )}
+        {!isLoading && !isError && hasFile && isWord && wordPreview.isLoading && (
+          <p className="fm-viewer-msg">
+            Opening the Word file<span className="blink" />
           </p>
         )}
         {isError && (
@@ -271,7 +292,7 @@ ${text}`);
 
         {/* Uploaded PDF - inline iframe preview */}
         {/* No built-in PDF viewer (Android app / mobile browsers): draw the pages. */}
-        {!isLoading && !isError && hasFile && isPdf && previewUrl && !canEmbedPdf() && (
+        {!isLoading && !isError && hasFile && showAsPdf && previewUrl && !canEmbedPdf() && (
           <Suspense fallback={<p className="body-md muted" style={{ textAlign: 'center', padding: 32 }}>Loading document…</p>}>
             <ZoomPane label={doc?.name ?? 'Document'} className="zoom-pane--modal">
               <PdfPages
@@ -282,7 +303,7 @@ ${text}`);
             </ZoomPane>
           </Suspense>
         )}
-        {!isLoading && !isError && hasFile && isPdf && previewUrl && canEmbedPdf() && (
+        {!isLoading && !isError && hasFile && showAsPdf && previewUrl && canEmbedPdf() && (
           <iframe
             src={previewUrl}
             title={doc?.name ?? 'Document'}
@@ -319,7 +340,7 @@ ${text}`);
         )}
 
         {/* Uploaded but unsupported preview type - offer download */}
-        {!isLoading && !isError && hasFile && !isPdf && !isImage && (
+        {!isLoading && !isError && hasFile && !showAsPdf && !isImage && !(isWord && wordPreview.isLoading) && (
           <div className="fm-viewer-file">
             <span className="fm-viewer-file-icon" aria-hidden><Icon name="file" size={26} /></span>
             <div className="fm-viewer-file-name">
