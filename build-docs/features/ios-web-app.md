@@ -17,6 +17,11 @@ Advocates use iPads (with Apple Pencil) and iPhones. DifAi should feel like an a
 - Review copy on iPad/iPhone: full-screen reading mode; notes become a slide-up panel below 900 px (iPad portrait, iPhone) and a column on wider screens; Pencil long-press shows no iOS callout or text selection; notes say Apple Pencil Scribble can write into them.
 - Review copy robustness (found by the WebKit run): a pen stroke kept only its first point when the browser returned no coalesced events (now uses the event itself); pointer capture refusal no longer stops a stroke; the reading area keeps scrollbar space and ignores sub-2px width changes.
 
+## Follow-up 2026-11-25 (owner: "blank space in the header and footer when scrolling")
+- Cause: Safari's rubber-band bounce shows the bare area above the header / below the footer, and `theme-color` was fixed at near-black, so the light theme showed a dark band in Safari's bars.
+- Fix: `html, body { overscroll-behavior-y: none }` inside `@supports (-webkit-touch-callout: none)` (iOS only, so Android keeps pull-to-refresh); `lib/theme-color.ts` keeps `<meta name="theme-color">` equal to the page background in light and dark (retries until the stylesheet has loaded; follows theme switches).
+- AC6: no blank band when pulled at the top or bottom on iPhone/iPad. AC7: Safari's bars match the page in both themes.
+
 ## Impact map
 - Every page (index.html meta, the dvh twins): only browsers that support dvh change; others ignore it.
 - `usePush.ts` / `NotifyPrompt` / Settings wording: iPads now see the install prompt; Android/desktop unchanged.

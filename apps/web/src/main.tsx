@@ -10,6 +10,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { initNative } from './lib/native';
 import { initLock } from './lib/app-lock';
 import { initStaleChunkReload } from './lib/stale-chunk';
+import { watchThemeColor } from './lib/theme-color';
 import { AppLock } from './components/AppLock';
 import { Splash } from './components/Splash';
 import { uiFor } from './lib/chambers';
@@ -27,6 +28,8 @@ import { registerPushWorker } from './hooks/usePush';
 hydrateUIAttributes();
 document.documentElement.dataset.ui = uiFor(window.location.pathname);
 initStaleChunkReload();
+// iOS: Safari's bars match the page in light and dark (no dark band over the header).
+watchThemeColor();
 initNative();
 initLock();
 // web-push: keep the notification worker registered (push only, no caching).

@@ -5309,3 +5309,11 @@ html.kb-open .fab { display: none !important; }
   /* a bigger invisible target than the tab itself */
   .edge-handle::before { content: ''; position: absolute; inset: -10px -10px -10px 0; }
 }
+
+/* ios-web-app: no blank space above the header / below the footer when the page
+   is pulled past its top or bottom on iPhone / iPad (Safari's rubber-band
+   bounce). iOS-only (-webkit-touch-callout exists only there), so Android keeps
+   pull-to-refresh. */
+@supports (-webkit-touch-callout: none) {
+  html, body { overscroll-behavior-y: none; }
+}

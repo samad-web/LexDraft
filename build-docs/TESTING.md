@@ -1,4 +1,11 @@
 # Testing
+## No blank space when scrolling on iOS — 2026-11-25
+- Web: ios.test.ts +1 (AC6: iOS-only overscroll rule present), theme-color.test.ts 1/1 (AC7: tint = page background; fallback only without one).
+- WebKit (iPhone 15 preset): light theme tint = page background rgb(244,244,243); switching to dark updates it to rgb(11,11,11).
+  - **Failure found and fixed:** on first load the tint was set before the stylesheet applied, so it fell back to near-black; it now retries until the real background is there.
+  - Not verifiable here: the bounce itself (Windows WebKit isn't iOS, so the iOS-only rule doesn't apply in it). Owner to check on an iPhone.
+- Regression: swipe 10/10 and review 13/13 WebKit runs still pass; web suite 54/56 (same 2 environmental); vite build ok.
+
 ## Edge swipe for the menu — 2026-11-25
 - Web: lib/__tests__/edge-swipe.test.ts 4/4 (AC1 start zone + 40 px sideways; AC2 close by swiping back; AC3/AC4 not on pen screen/dialogs, drawer widths 390/834 yes, 1024 no).
 - WebKit run (iPhone 15 / iPad Pro 11 presets, Chrome 1366; simulated server, no account): 10/10 — tab shows, edge swipe opens, swipe back closes, mid-page swipe and a 30 px drag don't open, tapping the tab opens, iPad has no tab and the rail swipe opens, computer has no tab. Screenshots checked (closed tab, open menu).
