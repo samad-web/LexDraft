@@ -101,7 +101,7 @@ function PhoneNotificationsPanel() {
     on: 'On for this device. Hearings, assigned work and eCourts updates also show in the notification bar.',
     off: 'Get hearing reminders, assigned work and eCourts updates in this device’s notification bar.',
     blocked: 'Notifications are blocked for DifAi in this browser. Allow them in the browser’s site settings, then turn this on.',
-    'ios-install': 'On iPhone: tap Share → Add to Home Screen, open DifAi from the Home Screen, then turn this on here.',
+    'ios-install': 'On iPhone or iPad: tap Share → Add to Home Screen, open DifAi from the Home Screen, then turn this on here.',
     unsupported: 'This browser can’t show notifications. Use Chrome on Android or a desktop browser.',
     unavailable: 'Phone notifications aren’t switched on for DifAi yet. Please try again later.',
   };

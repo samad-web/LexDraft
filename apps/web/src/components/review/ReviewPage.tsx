@@ -104,7 +104,9 @@ export function ReviewPage(p: Props) {
       return;
     }
     e.preventDefault();
-    e.currentTarget.setPointerCapture(e.pointerId);
+    // Keep the stroke if the pen leaves the canvas. Some browsers refuse capture
+    // for a pointer that has already lifted; that must not stop the stroke.
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     if (p.tool === 'eraser') {
       erase(pt);
       drawing.current = { id: e.pointerId, pts: [] };
@@ -128,7 +130,10 @@ export function ReviewPage(p: Props) {
     const d = drawing.current;
     if (!d || d.id !== e.pointerId) return;
     const r = rect();
-    const events = (e.nativeEvent.getCoalescedEvents?.() ?? [e.nativeEvent]) as PointerEvent[];
+    // The pen's in-between positions, for smooth lines. Some browsers return an
+    // empty list; then this event alone is the point (else the line is lost).
+    const coalesced = e.nativeEvent.getCoalescedEvents?.();
+    const events = (coalesced?.length ? coalesced : [e.nativeEvent]) as PointerEvent[];
     if (p.tool === 'eraser') { erase(toPagePoint(e.clientX, e.clientY, r)); return; }
     const ctx = inkRef.current!.getContext('2d')!;
     const tool = p.tool === 'hl' ? 'hl' : 'pen';
@@ -154,7 +159,10 @@ export function ReviewPage(p: Props) {
   return (
     <div
       className="rv-page"
-      style={{ position: 'relative', width: size.w || p.width, height: size.h || undefined, margin: '0 auto 12px', background: '#fff' }}
+      style={{
+        position: 'relative', width: size.w || p.width, height: size.h || undefined, margin: '0 auto 12px', background: '#fff',
+        WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none',
+      }}
       aria-label={`Page ${p.index + 1}`}
     >
       <canvas ref={baseRef} style={{ width: '100%', height: '100%', display: 'block' }} />

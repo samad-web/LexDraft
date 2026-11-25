@@ -28,7 +28,7 @@ export function NotifyPrompt({ variant }: { variant: 'banner' | 'row' }) {
   };
 
   const text = push.state === 'ios-install'
-    ? 'On iPhone, add DifAi to your Home Screen (Share → Add to Home Screen) to get hearing reminders as notifications.'
+    ? 'On iPhone or iPad, add DifAi to your Home Screen (Share → Add to Home Screen) to get hearing reminders as notifications.'
     : 'Get hearing reminders on this device, even when DifAi is closed.';
 
   return (
