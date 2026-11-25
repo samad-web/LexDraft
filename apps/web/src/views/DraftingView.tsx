@@ -1137,14 +1137,15 @@ export function DraftingView() {
     showToast({ type: 'sage', text: `Loaded template: ${t.label}` });
   };
 
-  const handleSave = () => {
+  /** Save the draft; resolves to its id (null when it couldn't be saved). */
+  const handleSave = async (): Promise<string | null> => {
     if (!output) {
       showToast({ type: 'amber', text: 'Generate a draft first' });
-      return;
+      return null;
     }
     if (streaming) {
       showToast({ type: 'amber', text: 'Wait until streaming finishes' });
-      return;
+      return null;
     }
     const fields: Record<string, string> = {};
     schema.sections.forEach((sec) =>
@@ -1155,7 +1156,7 @@ export function DraftingView() {
     );
     const editedHtmlValue = editedHtml ?? plainTextToHtml(output);
     const bodyText = editedHtml ? htmlToPlainText(editedHtml) : output;
-    saveMutation.mutate(
+    return saveMutation.mutateAsync(
       {
         id: currentDraftId,
         body: {
@@ -1194,7 +1195,7 @@ export function DraftingView() {
           showToast({ type: 'cobalt', text: msg });
         },
       },
-    );
+    ).then((saved) => saved.id, () => null);
   };
 
   /** import-edit-document: after a save, the edited Word copy into Documents
@@ -1332,14 +1333,14 @@ export function DraftingView() {
 
   /** A frozen copy of this draft (the same PDF as Download PDF) to mark up. */
   const startReview = async () => {
-    if (!currentDraftId || hasLocalEdits) {
-      showToast({ type: 'amber', text: 'Save the draft first, then make a review copy.' });
-      return;
-    }
     setReviewBusy(true);
     try {
+      // Saved first, automatically (owner 2026-11-25), so the review matches the
+      // saved draft and can tell when the draft changes later.
+      const draftId = await handleSave();
+      if (!draftId) return;
       const id = await reviewFromDraft({
-        draftId: currentDraftId, title: activeDocType,
+        draftId, title: activeDocType,
         matter: draftCase?.title ?? imported?.matter ?? '', pdf: await draftPdfBlob(),
       });
       navigate(`/app/review/${id}`);
