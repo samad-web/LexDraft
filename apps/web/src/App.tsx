@@ -1,3 +1,4 @@
+import { EdgeSwipe } from '@/components/shell/EdgeSwipe';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { CreditsLowBanner } from '@/components/CreditsLowBanner';
 import { useEffect, lazy, Suspense } from 'react';
@@ -314,6 +315,7 @@ export function App() {
       <a href="#main-content" className="skip-link">Skip to content</a>
       <div className="app">
         <Sidebar />
+        <EdgeSwipe />
         <div className="main">
           {/* Banners sit over the content column, so the sidebar runs full height. */}
           <OfflineBanner />
