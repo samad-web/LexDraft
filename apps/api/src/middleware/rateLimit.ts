@@ -85,6 +85,17 @@ export const shareOpenLimiter = rateLimit({
 // any sane rate, but a tight limiter raises the bar further and protects
 // against scraping. 20/min/IP fits a legitimate "user opens the link they
 // were emailed" pattern with headroom for retries.
+// hearings-calendar-feed: calendar apps poll the private .ics link. Apple's
+// iCloud fetches every subscriber's calendar from a few shared addresses, so the
+// per-IP cap is generous; the link itself is the secret.
+export const calendarFeedLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many calendar requests. Try again in a minute.' },
+});
+
 export const tokenLookupLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 20,

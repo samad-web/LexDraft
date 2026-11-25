@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { Icon, ErrorState } from '@lexdraft/ui';
 import type { CalendarHearing } from '@lexdraft/types';
@@ -238,6 +239,10 @@ function CalNav({ label, onPrev, onToday, onNext, onExport }: {
       <button type="button" className="btn btn-sm ct-cal-export" onClick={onExport}>
         <Icon name="download" size={12} /> Export ICS
       </button>
+      {/* hearings-calendar-feed: a live calendar instead of a one-off file */}
+      <Link className="btn btn-sm" to="/app/settings#calendar" title="Hearings in Apple Calendar, Google Calendar or Outlook, kept up to date">
+        <Icon name="calendar" size={12} /> Add to my calendar
+      </Link>
     </div>
   );
 }

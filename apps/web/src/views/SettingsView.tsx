@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ErrorState, Icon, Select, type SelectOption } from '@lexdraft/ui';
 import { useAuthStore } from '@/store/auth';
@@ -93,6 +93,73 @@ function SettingsRow({
   );
 }
 
+interface CalendarFeed { on: boolean; https?: string; webcal?: string }
+
+/** hearings-calendar-feed (owner 2026-11-25): the firm's hearings in Apple
+ *  Calendar (iPhone, iPad, Mac), Google Calendar or Outlook, kept up to date. */
+function CalendarFeedPanel() {
+  const qc = useQueryClient();
+  const confirm = useConfirm();
+  const showToast = useUIStore((s) => s.showToast);
+  const feed = useQuery({ queryKey: ['calendar-feed'], queryFn: () => api.get<CalendarFeed>('/calendar-feed') });
+  const set = (data: CalendarFeed) => qc.setQueryData(['calendar-feed'], data);
+  const turnOn = useMutation({ mutationFn: (reset: boolean) => api.post<CalendarFeed>('/calendar-feed', { reset }), onSuccess: set });
+  const turnOff = useMutation({ mutationFn: () => api.delete<CalendarFeed>('/calendar-feed'), onSuccess: set });
+  const busy = turnOn.isPending || turnOff.isPending;
+  const f = feed.data;
+  // Calendar page → "Add to my calendar" lands here (/app/settings#calendar).
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (window.location.hash === '#calendar' && feed.isSuccess) ref.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [feed.isSuccess]);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(f?.https ?? '');
+      showToast({ type: 'sage', text: 'Link copied. In Google Calendar: Other calendars → + → From URL. In Outlook: Add calendar → Subscribe from web.' });
+    } catch {
+      showToast({ type: 'amber', text: 'Couldn’t copy. Long-press the Apple Calendar button to copy its link instead.' });
+    }
+  };
+  const reset = async () => {
+    const ok = await confirm({
+      title: 'Reset the calendar link?',
+      message: 'Calendars subscribed with the old link stop updating. Add the new link on each device again.',
+      confirmLabel: 'Reset link',
+    });
+    if (ok) turnOn.mutate(true, { onSuccess: () => showToast({ type: 'sage', text: 'New link made. The old one no longer works.' }) });
+  };
+
+  return (
+    <div id="calendar" ref={ref}>
+      <SettingsRow
+        eyebrow="Calendar"
+        title="Hearings in your calendar"
+        description={f?.on
+          ? 'On. Your hearings show in the calendar you added them to and update by themselves about every hour. Anyone with this link can see them, so keep it to yourself; Reset makes a new one.'
+          : 'See the firm’s hearings in Apple Calendar on iPhone, iPad and Mac, or in Google Calendar or Outlook, updated by themselves. Apple or Google keep a copy of the case names, courts and dates in your calendar account.'}
+      >
+        <div className="fm-set-actions" style={{ flexWrap: 'wrap', gap: 8 }}>
+          {!f?.on ? (
+            <button className="btn btn-primary" disabled={busy || feed.isLoading} onClick={() => turnOn.mutate(false)}>
+              {turnOn.isPending ? 'Turning on…' : 'Add hearings to my calendar'}
+            </button>
+          ) : (
+            <>
+              <a className="btn btn-primary" href={f.webcal}>Open in Apple Calendar</a>
+              <button className="btn" onClick={() => void copy()}>Copy link (Google / Outlook)</button>
+              <button className="btn btn-ghost" disabled={busy} onClick={() => void reset()}>Reset link</button>
+              <button className="btn btn-ghost" disabled={busy} onClick={() => turnOff.mutate(undefined, { onSuccess: () => showToast({ type: 'sage', text: 'Calendar link turned off.' }) })}>
+                Turn off
+              </button>
+            </>
+          )}
+        </div>
+      </SettingsRow>
+    </div>
+  );
+}
+
 /** web-push (owner 2026-11-19): DifAi notices in the phone / computer notification bar. */
 function PhoneNotificationsPanel() {
   const push = usePushNotifications();
@@ -160,6 +227,8 @@ function AccountPanel() {
       <LanguagePreferencePanel />
 
       {!Capacitor.isNativePlatform() && <PhoneNotificationsPanel />}
+
+      <CalendarFeedPanel />
 
       <DailyBriefPanel />
 
