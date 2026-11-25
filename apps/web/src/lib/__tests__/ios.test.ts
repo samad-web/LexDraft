@@ -44,3 +44,10 @@ describe('AC1: Home Screen app', () => {
     expect(manifest.display).toBe('standalone');
   });
 });
+
+describe('AC6: no blank space when the page is pulled past its top or bottom', () => {
+  it('iOS-only rule stops the rubber-band bounce (Android keeps pull-to-refresh)', () => {
+    const css = readFileSync(resolve(__dirname, '../../styles/globals.css'), 'utf8');
+    expect(css).toMatch(/@supports \(-webkit-touch-callout: none\)\s*\{\s*html, body \{ overscroll-behavior-y: none; \}/);
+  });
+});

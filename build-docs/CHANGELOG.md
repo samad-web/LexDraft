@@ -1,4 +1,6 @@
 # Changelog
+- iOS: no blank space above the header or below the footer when scrolling past the top/bottom (bounce off on iOS; Safari's bar colour follows the page in light and dark). Not deployed.
+
 - Edge swipe for the menu (2026-11-25, owner): swipe in from the left edge (or tap the new edge tab on phones, or swipe from the iPad icon rail) to open the menu; swipe back to close. features/ios-sidebar-swipe.md. Not deployed.
 
 - Mark up case files and paper (2026-11-25, owner "both"): "Mark it up now?" after uploading a PDF/Word/photo, Mark up in the document viewer, photos of paper become upright pages, several files marked together, New handwritten page (blank A4) and Add page; iPhone photos upload as JPEG. No migration. features/case-markup.md. Not deployed.
