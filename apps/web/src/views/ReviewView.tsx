@@ -56,6 +56,9 @@ export function ReviewView() {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const lastSaved = useRef<string>('');
+  // Bumped after "Add page" so the pages are loaded again.
+  const [pdfRev, setPdfRev] = useState(0);
+  const [addingPage, setAddingPage] = useState(false);
 
   // Load the review and its frozen pages.
   useEffect(() => {
@@ -77,7 +80,7 @@ export function ReviewView() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, pdfRev]);
 
   // Page width follows the reading area.
   useEffect(() => {
@@ -151,6 +154,21 @@ export function ReviewView() {
       showToast({ type: 'amber', text: reviewErrorText((e as Error).message) });
     } finally {
       setExporting(false);
+    }
+  };
+
+  /** More paper: a blank page at the end (marks so far are saved first). */
+  const addPage = async () => {
+    if (!(await save())) { showToast({ type: 'amber', text: 'Couldn’t save the marks; check the connection and try again.' }); return; }
+    setAddingPage(true);
+    try {
+      await api.post(`/reviews/${id}/pages`);
+      setPdfRev((n) => n + 1);
+      showToast({ type: 'sage', text: 'Blank page added at the end.' });
+    } catch (e) {
+      showToast({ type: 'amber', text: reviewErrorText((e as Error).message) });
+    } finally {
+      setAddingPage(false);
     }
   };
 
@@ -244,6 +262,9 @@ export function ReviewView() {
           </div>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setHistory((h) => h && undo(h))} disabled={!history?.past.length}>Undo</button>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setHistory((h) => h && redo(h))} disabled={!history?.future.length}>Redo</button>
+          <button type="button" className="btn btn-sm" onClick={() => void addPage()} disabled={addingPage} title="Add a blank page at the end to write on">
+            {addingPage ? 'Adding…' : 'Add page'}
+          </button>
           <label className="row" style={{ gap: 6, alignItems: 'center', marginLeft: 'auto', cursor: 'pointer' }}>
             <input type="checkbox" checked={fingerDraw} onChange={(e) => setFingerDraw(e.target.checked)} />
             Draw with finger

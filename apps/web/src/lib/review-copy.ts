@@ -4,7 +4,10 @@ import { api } from '@/lib/api';
 const ERRORS: Record<string, string> = {
   not_pdf: 'This file couldn’t be turned into pages to mark up.',
   too_large: 'This document is too large for a review copy (10 MB).',
-  convert_failed: 'Couldn’t make a review copy of this Word file. Save it again in Word and try once more.',
+  convert_failed: 'Couldn’t make a review copy of this file. For Word, save it again in Word; for a photo, take it again.',
+  heic: 'This iPhone photo is in HEIC format. Upload it again from the iPhone (it now comes as JPEG), or set Settings → Camera → Formats → Most Compatible.',
+  too_many_files: 'Mark up at most 20 files together.',
+  too_many_pages: 'This review already has 200 pages. Save it to Documents and start a new one.',
   unsupported: 'Only PDF and Word files can be reviewed.',
   encrypted_or_doc: 'This Word file is password-protected. Remove the password in Word and try again.',
   draft_not_found: 'Save the draft first, then make a review copy.',
@@ -23,12 +26,22 @@ export function reviewErrorText(code: string | undefined): string {
 /** Files a review copy can be made of. */
 export function canReview(d: { hasFile?: boolean; fileName?: string; fileMime?: string; kind?: string; reviewId?: string }): boolean {
   if (d.kind === 'draft' || d.reviewId || !d.hasFile) return false;
-  if (d.fileName && /\.(pdf|docx|doc)$/i.test(d.fileName)) return true;
-  return /application\/pdf|wordprocessingml|msword/i.test(d.fileMime ?? '');
+  if (d.fileName && /\.(pdf|docx|doc|jpe?g|png|webp|tiff?)$/i.test(d.fileName)) return true;
+  return /application\/pdf|wordprocessingml|msword|image\/(jpeg|png|webp|tiff)/i.test(d.fileMime ?? '');
 }
 
 export async function reviewFromDocument(documentId: string): Promise<string> {
   return (await api.post<{ id: string }>('/reviews', { documentId })).id;
+}
+
+/** Several case files (PDFs, Word, photos of paper) as one review, in order. */
+export async function reviewFromDocuments(documentIds: string[]): Promise<string> {
+  return (await api.post<{ id: string }>('/reviews', { documentIds })).id;
+}
+
+/** A blank A4 sheet to write on with the pen, filed with the case. */
+export async function blankReview(matter: string): Promise<string> {
+  return (await api.post<{ id: string }>('/reviews', { blank: true, matter })).id;
 }
 
 export async function reviewFromDraft(input: { draftId: string; title: string; matter: string; pdf: Blob }): Promise<string> {

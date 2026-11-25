@@ -17,6 +17,8 @@ const FromDraft = z.object({
   pdfBase64: z.string().min(1).refine((b) => Buffer.byteLength(b, 'base64') <= MAX_SNAPSHOT_BYTES, { message: 'too_large' }),
 });
 const FromDocument = z.object({ documentId: z.string().uuid() });
+const FromDocuments = z.object({ documentIds: z.array(z.string().uuid()).min(1).max(20) });
+const Blank = z.object({ blank: z.literal(true), matter: z.string().max(300).default('') });
 const SaveBody = z.object({ marks: z.unknown().optional(), notes: z.unknown().optional() });
 
 async function ctxOf(req: { user?: { id: string } }) {
@@ -38,9 +40,11 @@ reviewsRouter.post('/', requireFeature('drafting.basic'), async (req, res, next)
   try {
     const ctx = await ctxOf(req);
     const body = req.body as Record<string, unknown>;
-    const out = 'documentId' in (body ?? {})
-      ? await reviewsService.fromDocument(FromDocument.parse(body).documentId, ctx)
-      : await reviewsService.fromDraft(FromDraft.parse(body), ctx);
+    const b = body ?? {};
+    const out = 'blank' in b ? await reviewsService.blank(Blank.parse(b).matter, ctx)
+      : 'documentIds' in b ? await reviewsService.fromDocuments(FromDocuments.parse(b).documentIds, ctx)
+      : 'documentId' in b ? await reviewsService.fromDocument(FromDocument.parse(b).documentId, ctx)
+      : await reviewsService.fromDraft(FromDraft.parse(b), ctx);
     res.status(201).json(out);
   } catch (err) { fail(err, res, next); }
 });
@@ -76,6 +80,12 @@ reviewsRouter.put('/:id', requireFeature('drafting.basic'), async (req, res, nex
 reviewsRouter.post('/:id/export', requireFeature('drafting.basic'), async (req, res, next) => {
   try {
     res.json(await reviewsService.exportToDocuments(String(req.params.id), await ctxOf(req)));
+  } catch (err) { fail(err, res, next); }
+});
+
+reviewsRouter.post('/:id/pages', requireFeature('drafting.basic'), async (req, res, next) => {
+  try {
+    res.json(await reviewsService.addPage(String(req.params.id), await ctxOf(req)));
   } catch (err) { fail(err, res, next); }
 });
 

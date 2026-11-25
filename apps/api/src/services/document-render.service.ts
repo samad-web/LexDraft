@@ -206,7 +206,7 @@ export async function convertDocToDocx(doc: Buffer): Promise<Buffer> {
 
 /** A Word file (.docx / .doc) or an HTML page -> PDF (review-copy: snapshots of
  *  case documents, and the notes page in Noto fonts). Throws on any failure. */
-export async function convertToPdf(input: Buffer, from: 'docx' | 'doc' | 'html'): Promise<Buffer> {
+export async function convertToPdf(input: Buffer, from: 'docx' | 'doc' | 'html' | 'webp' | 'tiff'): Promise<Buffer> {
   return withConvertLock(() => retryOnce(() => _convertInner(input, from, 'pdf')));
 }
 
@@ -222,7 +222,7 @@ export async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-async function _convertInner(input: Buffer, from: 'docx' | 'doc' | 'html', to: 'pdf' | 'docx'): Promise<Buffer> {
+async function _convertInner(input: Buffer, from: 'docx' | 'doc' | 'html' | 'webp' | 'tiff', to: 'pdf' | 'docx'): Promise<Buffer> {
   // Per-conversion working dir for the input/output only; the LibreOffice user
   // PROFILE is the shared warm one (WARM_PROFILE_DIR), created once.
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lexdraft-render-'));

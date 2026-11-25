@@ -1,4 +1,6 @@
 # Changelog
+- Mark up case files and paper (2026-11-25, owner "both"): "Mark it up now?" after uploading a PDF/Word/photo, Mark up in the document viewer, photos of paper become upright pages, several files marked together, New handwritten page (blank A4) and Add page; iPhone photos upload as JPEG. No migration. features/case-markup.md. Not deployed.
+
 - DEPLOYED 2026-11-25 06:44 UTC (api + web; 0124 applied with owner OK): review-copy auto-save c93fd47, iPhone/iPad web app 89ba192 (incl. the Pencil "dot instead of line" fix), hearings calendar feed aef9c3e. From server branch deploy/review-copy (c55770c), still WITHOUT the unapproved Brief Pack prices (a996d6a, fd61571, 0704b84) and 5327196. Backup pre-0124-20261125-064101.dump; rollback lexdraft-api/web:prev-20261125-064101. Smoke: ready db ok, site 200, sign-in 400, /api/calendar-feed 401, bad feed link 404, /api/reviews 401, engine ok, Google id + calendar section + Pencil fix in build, Home Screen meta served.
 
 - Hearings in Apple Calendar (2026-11-25, owner): Settings → "Hearings in your calendar": a private, self-updating calendar link for Apple Calendar (iPhone/iPad/Mac), Google Calendar and Outlook; Reset / Turn off; Calendar page shortcut. Migration 0124 users.calendar_feed_version. features/hearings-calendar-feed.md.
