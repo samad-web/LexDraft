@@ -1,6 +1,6 @@
 # Review copy: pen marks + margin notes (review-copy)
 
-**Status:** BUILT 2026-11-25 (owner: "yes proceed", all four recommendations). Not deployed; migration 0123 local only.
+**Status:** LIVE 2026-11-25 (b805d31 + retry 3e07578; owner: "yes proceed", all four recommendations). Migration 0123 on prod.
 
 **Built differently from the first draft of this doc:** the notes page is plain paragraphs (LibreOffice added its own list numbers to `<ol>`, giving "1. 1."). A teammate sees a review read-only; only the author saves it to Documents.
 
