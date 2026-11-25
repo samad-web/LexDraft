@@ -1,4 +1,6 @@
 # Changelog
+- Review copy: a finger draws by default on touch screens (two fingers scroll; the Apple Pencil switches it off); every "Save a copy to Documents" makes a new, separately named copy, never overwriting an earlier one. Not deployed.
+
 - Word files open on screen in the document viewer (converted to PDF pages); notification box on iPhone/iPad: permission asked straight from the tap and no endless waits; sheet fits Safari's toolbar. features/document-preview.md. Not deployed.
 
 - iOS: no blank space above the header or below the footer when scrolling past the top/bottom (bounce off on iOS; Safari's bar colour follows the page in light and dark). Not deployed.

@@ -4,6 +4,10 @@
 
 **Built differently from the first draft of this doc:** the notes page is plain paragraphs (LibreOffice added its own list numbers to `<ol>`, giving "1. 1."). A teammate sees a review read-only; only the author saves it to Documents.
 
+## Changes 2026-11-25 (owner: "finger marking is not working"; "save as a duplicate so it doesn't disturb the saved document")
+- **Finger:** on touch screens a finger draws by default; **two fingers scroll**. The first Apple Pencil stroke switches finger drawing off by itself (palm rejection), with a message; "Draw with finger" turns it back on.
+- **Saving:** every **Save a copy to Documents** creates a NEW document "<title> (marked copy, 25 Nov 2026, 1:05 pm)". Earlier copies and the original are never overwritten (was: one row per review, replaced). The review links to its latest copy for "Open review".
+
 ## Purpose
 An advocate reads a draft line by line and wants to circle, strike, underline or write over it with an iPad + Apple Pencil, and jot notes in the margin, on a duplicate, so the draft itself is never disturbed. The same for papers in a case (e.g. the other side's petition).
 

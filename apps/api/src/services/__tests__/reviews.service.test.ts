@@ -105,3 +105,11 @@ describe('flatten (Save to Documents)', () => {
       .not.toContain('<script>');
   });
 });
+
+describe('markedStamp (each saved copy gets its own name)', () => {
+  it('India date and time', async () => {
+    const { markedStamp } = await import('../reviews.service');
+    expect(markedStamp(new Date('2026-11-25T07:35:00Z'))).toBe('25 Nov 2026, 1:05 pm');
+    expect(markedStamp(new Date('2026-11-25T07:36:00Z'))).not.toBe(markedStamp(new Date('2026-11-25T07:35:00Z')));
+  });
+});

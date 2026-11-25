@@ -40,6 +40,13 @@ interface Row {
 
 export class ReviewError extends ImportError {}
 
+/** "25 Nov 2026, 1:05 pm" in India time: each saved copy has its own name. */
+export function markedStamp(d: Date): string {
+  const day = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+  const time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }).toLowerCase();
+  return `${day}, ${time}`;
+}
+
 /** Any file a review can be made of, as PDF: PDF as is; Word via LibreOffice;
  *  JPEG / PNG photos as upright A4-wide pages; WebP / TIFF via LibreOffice.
  *  iPhone HEIC can't be read here (the upload picker asks iOS for JPEG). */
@@ -334,27 +341,23 @@ export const reviewsService = {
     return this.get(id, ctx);
   },
 
-  /** Marks drawn into the PDF -> one Documents row per review, replaced on re-save. */
-  async exportToDocuments(id: string, ctx: Ctx): Promise<{ documentId: string; notesPage: boolean }> {
+  /** Marks drawn into the PDF -> a NEW Documents row every time (owner
+   *  2026-11-25: a saved copy is never overwritten; the original never changes).
+   *  The latest copy is linked to the review for "Open review". */
+  async exportToDocuments(id: string, ctx: Ctx, now = new Date()): Promise<{ documentId: string; notesPage: boolean; name: string }> {
     const r = await load(id, ctx);
     own(r, ctx);
     const snap = await this.snapshot(id, ctx);
     const { pdf, notesPage } = await flatten(snap, r.marks, r.notes, r.title);
-    const dated = new Date(r.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
-    const name = `${r.title} (review, ${dated})`;
-    const fileName = `${r.title.replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 120)} - review.pdf`;
-    const existing = r.result_document_id ? await documentsService.get(r.result_document_id, ctx.firmId) : undefined;
-    if (existing?.id) {
-      await documentsService.replaceFile(existing.id, ctx.firmId, { fileName, fileMime: 'application/pdf', body: pdf });
-      return { documentId: existing.id, notesPage };
-    }
+    const name = `${r.title} (marked copy, ${markedStamp(now)})`;
+    const fileName = `${r.title.replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 120)} - marked copy.pdf`;
     const doc = await documentsService.create({
       name, type: 'Review', case: r.case_label, updated: 'just now',
       fileName, fileMime: 'application/pdf', fileSize: pdf.length, fileBase64: pdf.toString('base64'),
     }, ctx.firmId);
     const sql = sqlOrThrow();
     await sql`update document_reviews set result_document_id = ${doc.id!}::uuid where id = ${r.id}::uuid`;
-    return { documentId: doc.id!, notesPage };
+    return { documentId: doc.id!, notesPage, name };
   },
 
   /** The review goes; a PDF already saved to Documents stays (it's a document now). */

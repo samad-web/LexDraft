@@ -41,7 +41,18 @@ export function ReviewView() {
   const [history, setHistory] = useState<History | null>(null);
   const [tool, setTool] = useState<Tool>('pen');
   const [color, setColor] = useState<Ink>('red');
-  const [fingerDraw, setFingerDraw] = useState(false);
+  // A finger draws on touch screens until an Apple Pencil is used (then fingers
+  // scroll and a resting palm never marks). Two fingers always scroll.
+  const [fingerDraw, setFingerDraw] = useState(() => window.matchMedia?.('(pointer: coarse)').matches ?? false);
+  const penNoticed = useRef(false);
+  const onPen = () => {
+    if (penNoticed.current) return;
+    penNoticed.current = true;
+    if (fingerDraw) {
+      setFingerDraw(false);
+      showToast({ type: 'sage', text: 'Apple Pencil found: the Pencil writes and your finger scrolls. Tick “Draw with finger” to write with a finger again.' });
+    }
+  };
   const [status, setStatus] = useState<'saved' | 'saving' | 'unsaved' | 'failed'>('saved');
   const [exporting, setExporting] = useState(false);
   const [openNote, setOpenNote] = useState<string | null>(null);
@@ -143,12 +154,12 @@ export function ReviewView() {
     if (!(await save())) { showToast({ type: 'amber', text: 'Couldn’t save the marks; check the connection and try again.' }); return; }
     setExporting(true);
     try {
-      const out = await api.post<{ documentId: string; notesPage: boolean }>(`/reviews/${id}/export`);
+      const out = await api.post<{ documentId: string; notesPage: boolean; name: string }>(`/reviews/${id}/export`);
       void qc.invalidateQueries({ queryKey: ['documents'] });
       setReview((r) => (r ? { ...r, resultDocumentId: out.documentId } : r));
       showToast({
         type: out.notesPage ? 'sage' : 'amber',
-        text: `Saved to ${review?.case && review.case !== '-' ? `${review.case}'s ` : ''}Documents.${out.notesPage ? '' : ' The notes list couldn’t be added this time; the marks are in.'}`,
+        text: `Saved “${out.name}” as a new copy in ${review?.case && review.case !== '-' ? `${review.case}'s ` : ''}Documents. The original and earlier copies are not changed.${out.notesPage ? '' : ' The notes list couldn’t be added this time; the marks are in.'}`,
       });
     } catch (e) {
       showToast({ type: 'amber', text: reviewErrorText((e as Error).message) });
@@ -220,7 +231,7 @@ export function ReviewView() {
         {edit && (
           <>
             <button type="button" className="btn btn-sm btn-primary" onClick={exportReview} disabled={exporting}>
-              <Icon name="documents" size={13} /> {exporting ? 'Saving…' : review.resultDocumentId ? 'Update in Documents' : 'Save to Documents'}
+              <Icon name="documents" size={13} /> {exporting ? 'Saving…' : 'Save a copy to Documents'}
             </button>
             <button type="button" className="btn btn-sm btn-ghost" onClick={remove} aria-label="Delete review"><Icon name="trash" size={13} /></button>
           </>
@@ -267,7 +278,7 @@ export function ReviewView() {
           </button>
           <label className="row" style={{ gap: 6, alignItems: 'center', marginLeft: 'auto', cursor: 'pointer' }}>
             <input type="checkbox" checked={fingerDraw} onChange={(e) => setFingerDraw(e.target.checked)} />
-            Draw with finger
+            Draw with finger{fingerDraw ? ' (two fingers scroll)' : ''}
           </label>
         </div>
       )}
@@ -286,6 +297,7 @@ export function ReviewView() {
               color={color}
               canEdit={edit}
               fingerDraw={fingerDraw}
+              onPen={onPen}
               scroller={scrollerRef.current}
               onStroke={(s) => change(withStroke(state, i, s))}
               onErase={(k) => change(withoutStroke(state, i, k))}

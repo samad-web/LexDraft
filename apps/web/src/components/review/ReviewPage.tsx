@@ -20,6 +20,8 @@ interface Props {
   color: Ink;
   canEdit: boolean;
   fingerDraw: boolean;
+  /** An Apple Pencil / stylus was used (the screen then lets fingers scroll). */
+  onPen: () => void;
   scroller: HTMLElement | null;
   onStroke: (s: Stroke) => void;
   onErase: (strokeIndex: number) => void;
@@ -27,11 +29,20 @@ interface Props {
   onOpenNote: (id: string) => void;
 }
 
+const centre = (m: Map<number, [number, number]>): [number, number] => {
+  let x = 0; let y = 0;
+  m.forEach(([a, b]) => { x += a; y += b; });
+  return [x / m.size, y / m.size];
+};
+
 export function ReviewPage(p: Props) {
   const baseRef = useRef<HTMLCanvasElement>(null);
   const inkRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef<{ id: number; pts: Array<[number, number]> } | null>(null);
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);
+  // Fingers on the page now; with finger drawing on, two fingers scroll.
+  const fingers = useRef(new Map<number, [number, number]>());
+  const twoFinger = useRef<[number, number] | null>(null);
   const textItems = useRef<Array<{ str: string; x: number; y: number }> | null>(null);
   const [penSeen, setPenSeen] = useState(false);
   const [size, setSize] = useState({ w: 0, h: 0, px: 1 });
@@ -98,8 +109,24 @@ export function ReviewPage(p: Props) {
       void excerpt(pt[1]).then((ex) => p.onAddNote({ x: pt[0], y: pt[1], excerpt: ex }));
       return;
     }
-    if (e.pointerType === 'pen' && !penSeen) setPenSeen(true);
-    if (!shouldDraw(e.pointerType, { fingerDraw: p.fingerDraw, penSeen: penSeen || e.pointerType === 'pen' })) {
+    if (e.pointerType === 'pen') {
+      if (!penSeen) setPenSeen(true);
+      p.onPen();
+    }
+    if (e.pointerType === 'touch') {
+      fingers.current.set(e.pointerId, [e.clientX, e.clientY]);
+      if (fingers.current.size >= 2) {
+        // A second finger: this is a scroll, not a mark. Drop the stroke begun.
+        if (drawing.current) {
+          drawing.current = null;
+          const c = inkRef.current;
+          if (c) drawStrokes(c.getContext('2d')!, p.strokes, c.width, c.height);
+        }
+        twoFinger.current = centre(fingers.current);
+        return;
+      }
+    }
+    if (!shouldDraw(e.pointerType, { fingerDraw: p.fingerDraw, penSeen: false })) {
       if (takesAllTouches && e.pointerType === 'touch') panning.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
       return;
     }
@@ -121,6 +148,16 @@ export function ReviewPage(p: Props) {
   };
 
   const move = (e: RPointerEvent<HTMLCanvasElement>) => {
+    if (e.pointerType === 'touch' && fingers.current.has(e.pointerId)) {
+      fingers.current.set(e.pointerId, [e.clientX, e.clientY]);
+      const before = twoFinger.current;
+      if (before && fingers.current.size >= 2) {
+        const now = centre(fingers.current);
+        p.scroller?.scrollBy(before[0] - now[0], before[1] - now[1]);
+        twoFinger.current = now;
+        return;
+      }
+    }
     const pan = panning.current;
     if (pan && pan.id === e.pointerId) {
       p.scroller?.scrollBy(pan.x - e.clientX, pan.y - e.clientY);
@@ -147,6 +184,8 @@ export function ReviewPage(p: Props) {
   };
 
   const up = (e: RPointerEvent<HTMLCanvasElement>) => {
+    fingers.current.delete(e.pointerId);
+    if (fingers.current.size < 2) twoFinger.current = null;
     if (panning.current?.id === e.pointerId) panning.current = null;
     const d = drawing.current;
     if (!d || d.id !== e.pointerId) return;

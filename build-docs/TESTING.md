@@ -1,4 +1,9 @@
 # Testing
+## Finger marking + saved copies never overwritten — 2026-11-25
+- WebKit iPad/iPhone run 14/14: before any Pencil a finger draws; two fingers scroll without drawing; the Pencil draws a full line; "Draw with finger" switches off after the Pencil; then a finger doesn't draw; notes; no page errors; Chrome mouse draws.
+- Local real run 4/4: two saves = two separate documents with their own names; the first copy's bytes unchanged after the second save; the original unchanged; the review opens from the latest copy.
+- reviews.service.test.ts +1 (markedStamp: India date and time). Full suites: API 105/105 files, 1224 pass; web 55/57 (same 2 environmental); build ok.
+
 ## Word files open on screen + notification box on iOS — 2026-11-25
 - Word preview, local real run (local PG16 + LibreOffice, test@ account; deleted after): 4/4 — .docx → PDF (4.6 s locally), .doc → PDF, PDF returned as is, another firm 404.
 - Viewer in a browser (simulated server): iPhone (WebKit) shows the Word file as a PDF frame, computer (Chrome) draws the page; no "isn't available" message; Mark up shown; no page errors. Screenshot checked.
