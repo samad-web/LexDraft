@@ -1,4 +1,11 @@
 # Testing
+## Hearings in Apple Calendar — 2026-11-25
+- API: services/__tests__/calendar-feed.service.test.ts 7/7 (AC2 valid VCALENDAR + refresh hints, 10:30 IST = 05:00 UTC, no time = all-day across year end, escaping + Tamil + 75-byte folding without broken characters; AC3-AC5 same link per version, Reset changes it, wrong/old/off/bad-id links get nothing).
+  - Test fixed (not the code): call counts carried over between tests; mocks now cleared in beforeEach.
+- Local end-to-end over real HTTP (createApp on a random port, local PG16 with 0124, test@ account, 1 temp case + hearing; all restored): 8/8 — public link 200 text/calendar without sign-in; 11:15 IST = 05:45 UTC; same link when turned on again; Reset → old 404, new 200; Turn off → 404; wrong user / odd names 404; managing needs sign-in (401).
+  - Test fixed: my "../../me" path was resolved by fetch to /api/me (401), so it never reached the route; replaced with wrong-user / odd-file checks.
+- Full suites: API 104/104 files, 1218 pass / 4 skipped; web 52/54 (same 2 environmental); tsc clean; vite build ok.
+
 ## iPhone / iPad friendly web app — 2026-11-25
 - Web: lib/__tests__/ios.test.ts 7/7 (AC4 iPhone, old iPad, iPadOS-as-Mac with touch, real Mac, Android; AC3 every 100vh has a 100dvh twin; AC1 Home Screen tags, no viewport-fit=cover, manifest standalone).
 - Real browser run (Playwright WebKit = Safari's engine, iPad Pro 11 / iPhone 15 presets; Chrome at 1366x768; server answers simulated, no account): 13/13 — review full-screen; notes behind "Notes" in iPad portrait, column in landscape; fingers scroll natively before any pen; Pencil (pointerType pen) draws a full line (11 points) and autosaves; a finger doesn't draw; Note tool adds a note and opens the panel; note autosaves; no page errors; iPhone no sideways scroll; Chrome mouse draws. Screenshot checked.

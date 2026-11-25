@@ -15,6 +15,7 @@ import { draftTemplatesRouter } from './draft-templates.routes';
 import { firmFormatsRouter } from './firm-formats.routes';
 import { draftsRouter } from './drafts.routes';
 import { reviewsRouter } from './reviews.routes';
+import { calendarFeedRouter, publicCalendarRouter } from './calendar-feed.routes';
 import { reviewRouter } from './review.routes';
 import { mockArgumentsRouter } from './mock-arguments.routes';
 import { titleReportsRouter } from './title-reports.routes';
@@ -74,7 +75,7 @@ import { exportsRouter } from './exports.routes';
 import { adminErrorsRouter } from './admin-errors.routes';
 import { surveyRouter } from './survey.routes';
 import { surveyDraftRouter } from './survey-draft.routes';
-import { shareOpenLimiter, signUpLimiter, surveyDraftLimiter } from '../middleware/rateLimit';
+import { calendarFeedLimiter, shareOpenLimiter, signUpLimiter, surveyDraftLimiter } from '../middleware/rateLimit';
 import { publicShareRouter, shareLinksRouter } from './share-links.routes';
 import { requireAuth, requireSuperadmin, optionalAuth } from '../middleware/auth';
 import { requireActivePlan } from '../middleware/requireActivePlan';
@@ -137,6 +138,8 @@ apiRouter.use('/survey', signUpLimiter, surveyRouter);
 
 // Secure share links: /s/<token> is public (rate limited); managing links needs sign-in.
 apiRouter.use('/s', shareOpenLimiter, publicShareRouter);
+// hearings-calendar-feed: public, the link is the key (Apple/Google/Outlook poll it).
+apiRouter.use('/calendar', calendarFeedLimiter, publicCalendarRouter);
 // GST invoice link sent on WhatsApp (invoice-whatsapp.md): public, 7 days, that one PDF only.
 apiRouter.get('/i/:token', shareOpenLimiter, async (req, res, next) => {
   try {
@@ -186,6 +189,7 @@ apiRouter.use('/draft-templates', requireAuth, requireActivePlan, draftTemplates
 apiRouter.use('/firm-formats', requireAuth, requireActivePlan, firmFormatsRouter);
 apiRouter.use('/drafts',   requireAuth, requireActivePlan, draftsRouter);
 apiRouter.use('/reviews',  requireAuth, requireActivePlan, reviewsRouter);
+apiRouter.use('/calendar-feed', requireAuth, requireActivePlan, calendarFeedRouter);
 apiRouter.use('/review',   requireAuth, requireActivePlan, reviewRouter);
 apiRouter.use('/mock-arguments', requireAuth, requireActivePlan, mockArgumentsRouter);
 apiRouter.use('/title-reports', requireAuth, requireActivePlan, titleReportsRouter);
