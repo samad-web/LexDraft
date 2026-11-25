@@ -1,6 +1,6 @@
 # iPhone and iPad friendly web app (ios-web-app)
 
-**Status:** BUILT 2026-11-25 (owner "yes proceed": Level 1 now, App Store app later). Not deployed.
+**Status:** LIVE 2026-11-25 (89ba192; owner "yes proceed": Level 1 now, App Store app later).
 
 ## Purpose
 Advocates use iPads (with Apple Pencil) and iPhones. DifAi should feel like an app there without an App Store app: Home Screen install, screens that fit, Pencil markup that works.

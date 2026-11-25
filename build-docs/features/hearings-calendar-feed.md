@@ -1,6 +1,6 @@
 # Hearings in Apple Calendar (hearings-calendar-feed)
 
-**Status:** BUILT 2026-11-25 (owner "yes proceed"). Not deployed; migration 0124 local only.
+**Status:** LIVE 2026-11-25 (aef9c3e; owner "yes proceed"). Migration 0124 on prod.
 
 ## Purpose
 Advocates live in their phone calendar. The firm's hearings should appear in Apple Calendar on iPhone, iPad and Mac (and Google Calendar / Outlook), and keep themselves up to date, instead of a one-off .ics download.
