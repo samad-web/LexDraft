@@ -1,4 +1,6 @@
 # Changelog
+- Fix: images upload again in Documents — computers accept iPhone HEIC photos (converted to JPEG where the browser can), photos over 12 MB are scaled down instead of refused. Not deployed.
+
 - DEPLOYED 2026-11-25 07:43 UTC (a737016, main; api + web; no migration): finger marks by default + every save a new copy. Before it: 07:27 c915b98 (Word preview 3ee5c58 + iOS notification fix 3d1dd82) from deploy/review-copy, then at 07:31-07:32 another session deployed main 3d1dd82, which put the Brief Pack prices (a996d6a, fd61571, 0704b84) and 5327196 live; owner asked to confirm the prices. Server is on main now. Backup pre-deploy-20261125-074027.dump; rollback lexdraft-api/web:prev-20261125-074027.
 
 - Review copy: a finger draws by default on touch screens (two fingers scroll; the Apple Pencil switches it off); every "Save a copy to Documents" makes a new, separately named copy, never overwriting an earlier one.

@@ -18,6 +18,10 @@ Documents uploaded to a case (including photos of paper notices and orders) shou
 - `POST /reviews` accepts `{ documentIds }` and `{ blank: true, matter }`; `POST /reviews/:id/pages`.
 - Web: `NewDocumentModal` (accept list without .heic; Mark up now), `DocumentViewerModal` (Mark up), `CaseDocumentsPanel` (New handwritten page, Mark up together), `ReviewView` (Add page), `lib/review-copy` (photos reviewable; helpers; error texts).
 
+## Fix 2026-11-25 (owner: "images are not getting uploaded")
+- Cause (my regression from this feature): `.heic` was removed from the upload picker for every device. On a Mac, iPhone photos are HEIC files, so the picker greyed them out; and any photo over 12 MB was refused as "too large". Prod logs showed no upload request reaching the server.
+- Fix (`lib/image-upload.ts`): the accept list leaves HEIC out only on iPhone/iPad (iOS converts to JPEG itself); computers accept HEIC/HEIF and the browser converts them to JPEG where it can (Safari on a Mac); a photo over 12 MB is scaled to 3000 px on the long side as JPEG. If a browser can't read the photo, the original is kept and the usual size check applies.
+
 ## Impact map
 - `NewDocumentModal` is used on the Documents page and in cases: both get "Mark up now". Removing `.heic` from the picker affects all uploads (iOS sends JPEG; a desktop HEIC can still be dragged in, and gets the advice if marked).
 - `convertToPdf` accepts webp/tiff (same LibreOffice path).

@@ -1,4 +1,11 @@
 # Testing
+## Images not uploading — 2026-11-25
+- Cause found from prod logs: no POST /api/documents at all (stopped in the browser). My earlier change removed .heic from the picker on every device.
+- Web: lib/__tests__/image-upload.test.ts 4/4 (HEIC accepted on computers, left out on iOS; HEIC detection; 3000 px scaling; .jpg name).
+- Real upload through the dialog in Chrome (simulated server recording what is posted): picker lists .heic/.heif; a 19 MB photo arrived as a 5 MB JPEG (before: refused as too large); a small JPEG arrived unchanged. 4/4.
+- Not tested here: converting an actual HEIC (needs Safari on a Mac; Chrome/Windows WebKit can't decode HEIC — they keep the original).
+- Web suite 56/58 (same 2 environmental); build ok.
+
 ## Finger marking + saved copies never overwritten — 2026-11-25
 - WebKit iPad/iPhone run 14/14: before any Pencil a finger draws; two fingers scroll without drawing; the Pencil draws a full line; "Draw with finger" switches off after the Pencil; then a finger doesn't draw; notes; no page errors; Chrome mouse draws.
 - Local real run 4/4: two saves = two separate documents with their own names; the first copy's bytes unchanged after the second save; the original unchanged; the review opens from the latest copy.

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { toUploadable, uploadAccept } from '@/lib/image-upload';
 import { useConfirm } from './ConfirmDialog';
 import { canReview, reviewErrorText, reviewFromDocument } from '@/lib/review-copy';
 import { useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from 'react';
@@ -14,9 +15,9 @@ interface Props {
 }
 
 const MAX_FILE_BYTES = 12 * 1024 * 1024; // 12 MB binary, ~16 MB base64.
-// No .heic: without it iOS converts iPhone photos to JPEG, which every browser
-// shows and the pen can mark up (case-markup).
-const ACCEPTED = '.pdf,.doc,.docx,.txt,.rtf,.png,.jpg,.jpeg,.tif,.tiff,.webp';
+// iPhone / iPad: no HEIC in the list, so iOS hands over a JPEG. Mac / Windows:
+// HEIC is accepted and converted to JPEG before upload (lib/image-upload).
+const ACCEPTED = uploadAccept();
 
 interface PickedFile {
   name: string;
@@ -98,8 +99,12 @@ export function NewDocumentModal({ open, onClose, defaultCase }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleFile = async (file: File | undefined) => {
-    if (!file) return;
+  const handleFile = async (input: File | undefined) => {
+    if (!input) return;
+    setReading(true);
+    // HEIC → JPEG, an over-size photo → a smaller JPEG (else the file itself).
+    const file = await toUploadable(input);
+    setReading(false);
     if (file.size > MAX_FILE_BYTES) {
       showToast({
         type: 'amber',
