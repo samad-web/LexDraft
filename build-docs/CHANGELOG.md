@@ -1,4 +1,6 @@
 # Changelog
+- Team documents (2026-11-26, owner): who made each document is shown; copies sit under their original; "X is working on this now" on documents and case notes; Send to teammate (task + notification) with Done ticks and replies, tasks closed and the marker told when all are done. Migration 0125 (local only). features/team-docs.md. Not deployed.
+
 - DEPLOYED 2026-11-25 08:27 UTC (96b10e9, web only; main): images upload again (HEIC on computers, big photos scaled). Rollback lexdraft-web:prev-20261125-082605.
 
 - Fix: images upload again in Documents — computers accept iPhone HEIC photos (converted to JPEG where the browser can), photos over 12 MB are scaled down instead of refused.

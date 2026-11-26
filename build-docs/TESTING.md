@@ -1,4 +1,14 @@
 # Testing
+## Team documents (who made it, working now, copies under the original, send to teammate) — 2026-11-26
+- Web: doc-tree.test.ts 4/4 (nesting order and depth, draft parents, missing parent / parent loop, maker line); presence-line.test.ts 1/1.
+- API: presence.service.test.ts 4/4 (others only, 75 s expiry + leave, firm isolation, allowed targets).
+- Local real runs (local PG16 with 0125, test@ account; a teammate simulated by id, no account created; all removed):
+  - makers 4/4: upload and marked copy show the maker; the copy points to its original; times present; viewer gets the maker.
+  - team work 10/10: send refuses non-members; a teammate's Done + reply recorded with name/time; review says who marked it; the marker's autosave keeps the tick and reply; a teammate can't change marks; all Done → the sent task moves to Done and the marker is notified; a tick can be undone; unknown note 404; other firm 404.
+- Browser (WebKit iPad, simulated server) 7/7: copy right under its original; "by …" shown; "Priya is working on this now"; "Marked by Anand"; Send to teammate posts the picked teammate (yourself not listed); ticking Done shows who; no page errors. Screenshot checked.
+  - **Failure found and fixed:** dialogs opened behind the full-screen review (layer 80 vs 50): Send to teammate and the Delete confirmation were invisible. Review screen now 48; shell bars/rails hide while it is open.
+- Regression: review 14/14, notification 21/21, Word viewer 8/8 WebKit runs pass. Full suites: API 106/106 files, 1228 pass; web 58/60 (same 2 environmental); tsc clean; vite build ok.
+
 ## Images not uploading — 2026-11-25
 - Cause found from prod logs: no POST /api/documents at all (stopped in the browser). My earlier change removed .heic from the picker on every device.
 - Web: lib/__tests__/image-upload.test.ts 4/4 (HEIC accepted on computers, left out on iOS; HEIC detection; 3000 px scaling; .jpg name).

@@ -13,6 +13,8 @@ import { documentsService } from './documents.service';
 import { draftsService } from './drafts.service';
 import { assertMatter, detectKind, fileOf, ImportError, NO_CASE } from './imported-documents.service';
 import { storage } from './storage.service';
+import { tasksService } from './tasks.service';
+import { notificationsStore as notificationsService } from './notifications.service';
 import { appendBlankPage, blankPdf, imageKind, imageToPdf, mergePdfs } from './review-pages';
 
 export const MAX_SNAPSHOT_BYTES = 10 * 1024 * 1024; // JSON body limit is 16 MB (base64)
@@ -26,7 +28,13 @@ type Ink = keyof typeof INK;
 
 export interface Stroke { tool: 'pen' | 'hl'; color: Ink; w: number; pts: Array<[number, number]> }
 export interface Marks { pages: Array<{ strokes: Stroke[] }> }
-export interface ReviewNote { id: string; page: number; x: number; y: number; text: string; excerpt: string }
+export interface NoteReply { by: string; name: string; text: string; at: string }
+export interface ReviewNote {
+  id: string; page: number; x: number; y: number; text: string; excerpt: string;
+  /** team-docs: ticked Done by a teammate (who, when). */
+  done?: { by: string; name: string; at: string } | null;
+  replies?: NoteReply[];
+}
 
 interface Ctx { userId: string; firmId: string | null }
 
@@ -36,6 +44,8 @@ interface Row {
   snapshot_key: string; page_count: number; marks: Marks; notes: ReviewNote[];
   result_document_id: string | null; created_at: Date | string; updated_at: Date | string;
   draft_updated_at?: Date | string | null;
+  author_name?: string | null;
+  task_ids?: string[];
 }
 
 export class ReviewError extends ImportError {}
@@ -190,6 +200,7 @@ function toDto(r: Row, viewer: string) {
     sourceDocumentId: r.source_document_id, pageCount: r.page_count, marks: r.marks, notes: r.notes,
     resultDocumentId: r.result_document_id, createdAt: iso(r.created_at), updatedAt: iso(r.updated_at),
     canEdit: r.user_id === viewer, draftChanged: !!changed,
+    authorName: r.author_name ?? null, sentCount: (r.task_ids ?? []).length,
   };
 }
 export type ReviewDto = ReturnType<typeof toDto>;
@@ -226,8 +237,8 @@ async function insert(ctx: Ctx, snapshot: Buffer, row: {
 async function load(id: string, ctx: Ctx): Promise<Row> {
   const sql = sqlOrThrow();
   const rows = await sql<Row[]>`
-    select r.*, d.updated_at as draft_updated_at
-    from document_reviews r left join drafts d on d.id = r.draft_id
+    select r.*, d.updated_at as draft_updated_at, u.name as author_name
+    from document_reviews r left join drafts d on d.id = r.draft_id left join users u on u.id = r.user_id
     where r.id::text = ${id} and r.firm_id = ${ctx.firmId}::uuid limit 1`;
   if (!rows[0]) throw new ReviewError('review_not_found', 404);
   return rows[0];
@@ -334,7 +345,13 @@ export const reviewsService = {
     const r = await load(id, ctx);
     own(r, ctx);
     const marks = body.marks === undefined ? r.marks : cleanMarks(body.marks, r.page_count);
-    const notes = body.notes === undefined ? r.notes : cleanNotes(body.notes, r.page_count);
+    // The author edits note text and place; ticks and replies belong to whoever
+    // made them, so they are always taken from what is stored, never from the save.
+    const kept = new Map(r.notes.map((n) => [n.id, n]));
+    const notes = body.notes === undefined ? r.notes : cleanNotes(body.notes, r.page_count).map((n) => {
+      const old = kept.get(n.id);
+      return { ...n, done: old?.done ?? null, replies: old?.replies ?? [] };
+    });
     const sql = sqlOrThrow();
     await sql`update document_reviews set marks = ${sql.json(marks as never)}, notes = ${sql.json(notes as never)}
               where id = ${r.id}::uuid and firm_id = ${ctx.firmId}::uuid`;
@@ -353,11 +370,82 @@ export const reviewsService = {
     const fileName = `${r.title.replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 120)} - marked copy.pdf`;
     const doc = await documentsService.create({
       name, type: 'Review', case: r.case_label, updated: 'just now',
+      createdBy: ctx.userId, parentDocumentId: r.source_document_id, parentDraftId: r.draft_id,
       fileName, fileMime: 'application/pdf', fileSize: pdf.length, fileBase64: pdf.toString('base64'),
     }, ctx.firmId);
     const sql = sqlOrThrow();
     await sql`update document_reviews set result_document_id = ${doc.id!}::uuid where id = ${r.id}::uuid`;
     return { documentId: doc.id!, notesPage, name };
+  },
+
+  /** Send to teammates: a task for each (on their board) and a notification that
+   *  opens this review. Author only; teammates must be in the firm. */
+  async send(id: string, input: { userIds: string[]; message?: string; due?: string }, ctx: Ctx & { name: string }): Promise<{ sent: number }> {
+    const r = await load(id, ctx);
+    own(r, ctx);
+    const sql = sqlOrThrow();
+    const members = await sql<Array<{ id: string }>>`
+      select id from users where firm_id = ${ctx.firmId}::uuid and id = any(${input.userIds}::uuid[]) and id <> ${ctx.userId}::uuid`;
+    if (!members.length) throw new ReviewError('no_teammates');
+    const taskIds: string[] = [];
+    for (const m of members) {
+      const task = await tasksService.create({
+        title: `Work on the marks: ${r.title}`.slice(0, 200), case: r.case_label === NO_CASE ? '' : r.case_label,
+        due: input.due ?? '', priority: 'medium', assignee: '', comments: 0, column: 'pending', assigneeUserId: m.id,
+      }, ctx.firmId);
+      taskIds.push(task.id);
+      await notificationsService.create({
+        firmId: ctx.firmId!, userId: m.id, tone: 'cobalt', icon: 'edit', view: `review/${r.id}`,
+        title: `${ctx.name} sent you marks to work on`,
+        body: `${r.title}${input.message ? `: ${input.message.slice(0, 300)}` : ''}`,
+        dedupeKey: `review-sent:${r.id}:${m.id}`,
+      });
+    }
+    await sql`update document_reviews set task_ids = task_ids || ${taskIds}::uuid[] where id = ${r.id}::uuid`;
+    return { sent: members.length };
+  },
+
+  /** A teammate (or the author) ticks a note Done / undone, or replies to it.
+   *  When every note is Done: the author is told and the sent tasks close. */
+  async workOnNote(id: string, noteId: string, input: { done?: boolean; reply?: string }, ctx: Ctx & { name: string }): Promise<ReviewDto> {
+    const sql = sqlOrThrow();
+    let finished = false;
+    let author: string | null = null;
+    let taskIds: string[] = [];
+    let title = '';
+    await sql.begin(async (tx) => {
+      const rows = await tx<Row[]>`select * from document_reviews where id::text = ${id} and firm_id = ${ctx.firmId}::uuid for update`;
+      const r = rows[0];
+      if (!r) throw new ReviewError('review_not_found', 404);
+      const notes = r.notes.slice();
+      const i = notes.findIndex((n) => n.id === noteId);
+      if (i < 0) throw new ReviewError('note_not_found', 404);
+      const wasAllDone = notes.length > 0 && notes.every((n) => n.done);
+      const now = new Date().toISOString();
+      const n = { ...notes[i]! };
+      if (input.done !== undefined) n.done = input.done ? { by: ctx.userId, name: ctx.name, at: now } : null;
+      if (input.reply?.trim()) {
+        const replies = n.replies ?? [];
+        if (replies.length >= 20) throw new ReviewError('too_many_replies', 413);
+        n.replies = [...replies, { by: ctx.userId, name: ctx.name, text: input.reply.trim().slice(0, 500), at: now }];
+      }
+      notes[i] = n;
+      await tx`update document_reviews set notes = ${tx.json(notes as never)} where id = ${r.id}::uuid`;
+      finished = !wasAllDone && notes.length > 0 && notes.every((x) => x.done);
+      author = r.user_id;
+      taskIds = r.task_ids ?? [];
+      title = r.title;
+    });
+    if (finished) {
+      for (const t of taskIds) await tasksService.move(t, 'done', ctx.firmId).catch(() => undefined);
+      if (author && author !== ctx.userId) {
+        await notificationsService.create({
+          firmId: ctx.firmId!, userId: author, tone: 'sage', icon: 'check', view: `review/${id}`,
+          title: `All marks done by ${ctx.name}`, body: title, dedupeKey: `review-done:${id}`,
+        }).catch(() => undefined);
+      }
+    }
+    return this.get(id, ctx);
   },
 
   /** The review goes; a PDF already saved to Documents stays (it's a document now). */

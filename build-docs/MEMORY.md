@@ -1,6 +1,7 @@
 # Project memory (LexDraft / DifAi)
 
 ## Decisions
+- 2026-11-26 (owner "yes"): team documents — maker shown on every document; copies always shown under the original; live "working on this now" (in memory, no storage); Send to teammate = task + notification; teammates tick notes Done + reply, marks stay the marker's; copies visible firm-wide. features/team-docs.md.
 - 2026-11-25 (owner "both"): case files and paper can be marked with the pen: photos/scans of paper documents (upright pages) AND blank handwritten sheets; "Mark up now" after upload. Picker no longer offers .heic so iOS sends JPEG. features/case-markup.md.
 - 2026-11-25 (owner "yes proceed"): Apple devices = Level 1 now (the website works like an app on iPhone/iPad: Home Screen, fits the screen, Pencil), Level 2 App Store app LATER (needs Apple Developer account, Mac/cloud build, Sign in with Apple, sign-in only like the Play app). Hearings feed for Apple Calendar: yes. Review copy saves the draft automatically. No viewport-fit=cover (iOS keeps screens clear of notch/home bar itself). features/ios-web-app.md.
 - 2026-11-25 (owner "yes proceed"): Review copy. Saved reviews visible to the whole firm (author-only edit); margin notes can Send to Redraft (credits as Redraft; source 'advocate' so exact edits stay free); ink black/blue/red + yellow highlighter (advocate's marks, not app UI colour); works on drafts and case PDF/Word files. Pen marks are a picture: no handwriting recognition (unreliable for legal text, paid per mark). features/review-copy.md.

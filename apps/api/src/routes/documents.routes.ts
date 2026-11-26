@@ -160,7 +160,8 @@ documentsRouter.post(
     try {
       const firmId = await firmIdForUser(req.user?.id);
       if (req.body.fileSize) await storageUsageService.assertRoom(firmId, req.body.fileSize);
-      res.status(201).json(await documentsService.create(req.body, firmId));
+      // Who made it is the signed-in user; what it is a copy of is only set by the server.
+      res.status(201).json(await documentsService.create({ ...req.body, createdBy: req.user?.id ?? null, parentDocumentId: null, parentDraftId: null }, firmId));
     } catch (err) {
       next(err);
     }

@@ -1,3 +1,4 @@
+import { useFirmWorking, useWorkingOn, workingLine } from '@/hooks/usePresence';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 import { Icon, Select } from '@lexdraft/ui';
 import type { CaseNote, CaseNoteVisibility } from '@lexdraft/types';
@@ -39,6 +40,10 @@ interface CaseNotesPanelProps {
 export function CaseNotesPanel({ caseId, matterTitle }: CaseNotesPanelProps) {
   const { data: notes, isLoading } = useCaseNotes(caseId);
   const [open, setOpen] = useState(false);
+  // team-docs: while you write a note the team sees it; you see who else is.
+  useWorkingOn(open ? [`case-notes:${caseId}`] : null);
+  const firmWorking = useFirmWorking();
+  const writingNow = workingLine(firmWorking, [`case-notes:${caseId}`]).replace('working on this now', 'writing a note on this case now');
 
   const sharedCount = notes?.filter((n) => n.visibility === 'shared').length ?? 0;
   const privateCount = notes?.filter((n) => n.visibility === 'private').length ?? 0;
@@ -49,6 +54,7 @@ export function CaseNotesPanel({ caseId, matterTitle }: CaseNotesPanelProps) {
         <div className="cs-card-titles">
           <h2 className="cs-card-title">Case facts &amp; notes</h2>
           <p className="cs-card-sub">{sharedCount} shared with the team · {privateCount} only you · AI drafting reads these</p>
+          {writingNow && <p className="cs-card-sub" role="status"><strong>● {writingNow}</strong></p>}
         </div>
         <button type="button" className="btn btn-sm" onClick={() => setOpen(true)}>
           <Icon name="plus" size={12} /> Add note
@@ -99,6 +105,7 @@ function NoteRow({ note, isLast, caseId }: NoteRowProps) {
   const update = useUpdateCaseNote(caseId);
   const canDelete = viewer?.id === note.authorId;
   const [editing, setEditing] = useState(false);
+  useWorkingOn(editing ? [`case-notes:${caseId}`] : null); // team-docs: editing a note counts too
   const [draftTitle, setDraftTitle] = useState('');
   const [draftBody, setDraftBody] = useState('');
 

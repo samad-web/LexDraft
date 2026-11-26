@@ -1,3 +1,5 @@
+import { useFirmWorking, workingLine } from '@/hooks/usePresence';
+import { makerLine, nestDocuments } from '@/lib/doc-tree';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
@@ -141,7 +143,11 @@ export function DocumentsView() {
     });
   }, [all, folder, chip, query]);
 
-  const pager = usePagination(filtered);
+  // team-docs: copies right under their original, with who made them.
+  const rows = useMemo(() => nestDocuments(filtered), [filtered]);
+  const working = useFirmWorking();
+  const depthOf = useMemo(() => new Map(rows.map((r) => [r.doc, r.depth])), [rows]);
+  const pager = usePagination(rows.map((r) => r.doc));
 
   return (
     <div className="col stagger fm-view fm-docs">
@@ -257,6 +263,7 @@ export function DocumentsView() {
                   </thead>
                   <tbody>
                     {pager.slice.map((d) => {
+                      const depth = depthOf.get(d) ?? 0;
                       const status = statusFor(d);
                       const key = d.id ?? `${d.name}-${d.updated}`;
                       const docId = d.id ?? '';
@@ -277,14 +284,18 @@ export function DocumentsView() {
                           }}
                         >
                           <td>
-                            <div className="fm-doc-name" title={d.name}>
+                            <div className="fm-doc-name" title={d.name} style={depth ? { paddingLeft: depth * 22 } : undefined}>
+                              {depth > 0 && <span aria-hidden style={{ color: 'var(--text-tertiary)', marginRight: 2 }}>↳</span>}
                               <span className={`fm-doc-icon${isDraft ? ' is-draft' : ''}`} aria-hidden>
                                 <Icon name={isDraft ? 'draft' : 'file'} size={15} />
                               </span>
                               <span className="fm-doc-text">
                                 <span className="fm-doc-title" style={{ display: 'block' }}>{d.name}</span>
                                 <span className="fm-doc-type" style={{ display: 'block' }}>
-                                  {isDraft ? 'Saved draft' : d.hasFile ? 'File attached' : 'Record only'}
+                                  {[makerLine(d, depth > 0), isDraft ? 'Saved draft' : d.hasFile ? 'File attached' : 'Record only'].filter(Boolean).join(' · ')}
+                                  {workingLine(working, [`doc:${docId}`, `draft:${docId}`]) && (
+                                    <strong style={{ display: 'block', whiteSpace: 'normal' }}>● {workingLine(working, [`doc:${docId}`, `draft:${docId}`])}</strong>
+                                  )}
                                 </span>
                               </span>
                             </div>

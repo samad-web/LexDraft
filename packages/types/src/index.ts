@@ -145,6 +145,14 @@ export interface DocumentRecord {
   requiresAcknowledgement?: boolean;
   /** Set when a client has acknowledged the document. */
   signedAt?: string;
+  /** team-docs: who uploaded / made this document (name), when known. */
+  createdByName?: string | null;
+  /** team-docs: the document this one is a copy of (marked / edited / duplicate). */
+  parentDocumentId?: ID | null;
+  /** team-docs: the draft this one was made from (a marked copy of a draft). */
+  parentDraftId?: ID | null;
+  /** ISO time the row was made. */
+  createdAt?: string;
 }
 
 export interface DocumentUploadUrlRequest {

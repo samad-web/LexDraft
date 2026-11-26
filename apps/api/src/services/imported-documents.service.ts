@@ -166,7 +166,7 @@ export const importedDocumentsService = {
     const out = await read(buf, kind, input.fileName);
     const title = baseName(input.fileName);
     const original = await documentsService.create({
-      name: `${title} (original)`, type: input.docType, case: matter || NO_CASE, updated: 'just now',
+      name: `${title} (original)`, type: input.docType, case: matter || NO_CASE, updated: 'just now', createdBy: ctx.userId,
       fileName: input.fileName, fileMime: MIME[kind], fileSize: buf.length, fileBase64: input.fileBase64,
     }, ctx.firmId);
     return { ...out, sourceDocumentId: original.id!, title, docType: input.docType, matter };
@@ -195,6 +195,7 @@ export const importedDocumentsService = {
     }
     const created = await documentsService.create({
       ...meta, updated: 'just now', fileName: file.fileName, fileMime: DOCX_MIME,
+      createdBy: ctx.userId, parentDocumentId: draft.sourceDocumentId ?? null,
       fileSize: buf.length, fileBase64: docxBase64,
     }, ctx.firmId);
     await draftsService.setEditedDocument(draftId, created.id!, { userId: ctx.userId });
@@ -210,12 +211,13 @@ export const importedDocumentsService = {
     const draft = await draftsService.get(draftId, { userId: ctx.userId });
     if (!draft) throw new ImportError('draft_not_found', 404);
     const made: string[] = [];
-    const copyDoc = async (id: string | null | undefined, name?: string): Promise<string | undefined> => {
+    const copyDoc = async (id: string | null | undefined, name?: string, parent?: string): Promise<string | undefined> => {
       if (!id) return undefined;
       const src = await fileOf(id, ctx.firmId).catch(() => null);
       if (!src) return undefined; // the original was deleted: the copy just has no layout file
       const c = await documentsService.create({
         name: name ?? src.rec.name, type: src.rec.type, case: matter, updated: 'just now',
+        createdBy: ctx.userId, parentDocumentId: parent ?? id,
         fileName: src.rec.fileName ?? `${baseName(src.rec.name)}.docx`, fileMime: src.rec.fileMime ?? DOCX_MIME,
         fileSize: src.body.length, fileBase64: src.body.toString('base64'),
       }, ctx.firmId);
@@ -224,7 +226,7 @@ export const importedDocumentsService = {
     };
     try {
       const sourceDocumentId = await copyDoc(draft.sourceDocumentId);
-      const editedId = await copyDoc(draft.editedDocumentId, draft.title);
+      const editedId = await copyDoc(draft.editedDocumentId, draft.title, sourceDocumentId);
       const copy = await draftsService.create({
         title: draft.title, docType: draft.docType, language: draft.language,
         tone: draft.tone as 'Professional', fields: draft.fields, editedHtml: draft.editedHtml,

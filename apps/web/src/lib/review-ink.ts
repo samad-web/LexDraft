@@ -6,7 +6,12 @@ export type Ink = 'black' | 'blue' | 'red' | 'yellow';
 export type Tool = 'pen' | 'hl' | 'eraser' | 'note';
 export interface Stroke { tool: 'pen' | 'hl'; color: Ink; w: number; pts: Array<[number, number]> }
 export interface Marks { pages: Array<{ strokes: Stroke[] }> }
-export interface ReviewNote { id: string; page: number; x: number; y: number; text: string; excerpt: string }
+export interface ReviewNote {
+  id: string; page: number; x: number; y: number; text: string; excerpt: string;
+  /** team-docs: ticked Done by (server-set). */
+  done?: { by: string; name: string; at: string } | null;
+  replies?: Array<{ by: string; name: string; text: string; at: string }>;
+}
 export interface ReviewState { marks: Marks; notes: ReviewNote[] }
 
 export const INK_CSS: Record<Ink, string> = { black: '#121212', blue: '#1a4dd9', red: '#d91a1a', yellow: '#ffd91a' };

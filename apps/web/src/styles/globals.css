@@ -5317,3 +5317,11 @@ html.kb-open .fab { display: none !important; }
 @supports (-webkit-touch-callout: none) {
   html, body { overscroll-behavior-y: none; }
 }
+
+/* A full-screen tool (the review / pen screen) is open: the app's bars, rails and
+   floating buttons step aside so nothing sits on top of it. */
+html.has-fullscreen .sidebar,
+html.has-fullscreen .sidebar-scrim,
+html.has-fullscreen .edge-handle,
+html.has-fullscreen .mobile-nav,
+html.has-fullscreen .fab { visibility: hidden; }

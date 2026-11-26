@@ -1,3 +1,4 @@
+import { useWorkingOn, workingLine } from '@/hooks/usePresence';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
@@ -312,6 +313,8 @@ export function DraftingView() {
   // original stays untouched; each save files the edited Word copy into Documents.
   const [imported, setImported] = useState<{ sourceDocumentId: string; matter: string } | null>(null);
   const [openDocOpen, setOpenDocOpen] = useState(false);
+  // team-docs: while an imported document is open here, the team sees who is on it.
+  const othersOnDoc = useWorkingOn(imported?.sourceDocumentId ? [`doc:${imported.sourceDocumentId}`] : null);
   const [copyOpen, setCopyOpen] = useState(false);
   const [reviewBusy, setReviewBusy] = useState(false);
   // review-copy: a margin note sent to Redraft, run once the draft has loaded.
@@ -2215,6 +2218,7 @@ export function DraftingView() {
                   ) : hasOutput ? (
                     <span className="dw-status">
                       {currentDraftId ? (hasLocalEdits ? 'Edited · not saved' : 'Saved to My drafts') : 'Not saved yet'}
+                  {imported?.sourceDocumentId && workingLine(othersOnDoc, [`doc:${imported.sourceDocumentId}`]) ? ` · ${workingLine(othersOnDoc, [`doc:${imported.sourceDocumentId}`])}` : ''}
                     </span>
                   ) : null}
                 </div>

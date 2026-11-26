@@ -15,6 +15,7 @@ import { draftTemplatesRouter } from './draft-templates.routes';
 import { firmFormatsRouter } from './firm-formats.routes';
 import { draftsRouter } from './drafts.routes';
 import { reviewsRouter } from './reviews.routes';
+import { presenceRouter } from './presence.routes';
 import { calendarFeedRouter, publicCalendarRouter } from './calendar-feed.routes';
 import { reviewRouter } from './review.routes';
 import { mockArgumentsRouter } from './mock-arguments.routes';
@@ -189,6 +190,7 @@ apiRouter.use('/draft-templates', requireAuth, requireActivePlan, draftTemplates
 apiRouter.use('/firm-formats', requireAuth, requireActivePlan, firmFormatsRouter);
 apiRouter.use('/drafts',   requireAuth, requireActivePlan, draftsRouter);
 apiRouter.use('/reviews',  requireAuth, requireActivePlan, reviewsRouter);
+apiRouter.use('/presence', requireAuth, requireActivePlan, presenceRouter);
 apiRouter.use('/calendar-feed', requireAuth, requireActivePlan, calendarFeedRouter);
 apiRouter.use('/review',   requireAuth, requireActivePlan, reviewRouter);
 apiRouter.use('/mock-arguments', requireAuth, requireActivePlan, mockArgumentsRouter);

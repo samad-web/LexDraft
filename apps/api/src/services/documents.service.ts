@@ -16,6 +16,10 @@ interface DocRow {
   shared_with_client?: boolean;
   requires_acknowledgement?: boolean;
   signed_at?: Date | string | null;
+  created_by_name?: string | null;
+  parent_document_id?: string | null;
+  parent_draft_id?: string | null;
+  created_at?: Date | string | null;
 }
 
 const memory: (DocumentRecord & { id: string })[] = SEED_DOCS.map((d, i) => ({ ...d, id: `d${i + 1}` }));
@@ -58,6 +62,10 @@ function fromRow(r: DocRow): DocumentRecord & { id: string } {
     sharedWithClient: !!r.shared_with_client,
     requiresAcknowledgement: !!r.requires_acknowledgement,
     ...(signedAtIso ? { signedAt: signedAtIso } : {}),
+    ...(r.created_by_name !== undefined ? { createdByName: r.created_by_name } : {}),
+    ...(r.parent_document_id ? { parentDocumentId: r.parent_document_id } : {}),
+    ...(r.parent_draft_id ? { parentDraftId: r.parent_draft_id } : {}),
+    ...(r.created_at ? { createdAt: r.created_at instanceof Date ? r.created_at.toISOString() : r.created_at } : {}),
     ...file,
   };
 }
@@ -91,6 +99,10 @@ export interface CreateDocumentInput extends Omit<DocumentRecord, 'id'> {
   fileSize?: number;
   fileBase64?: string;
   storageKey?: string;
+  /** team-docs: who made it, and what it is a copy of. */
+  createdBy?: string | null;
+  parentDocumentId?: string | null;
+  parentDraftId?: string | null;
 }
 
 export const documentsService = {
@@ -99,12 +111,13 @@ export const documentsService = {
     const sql = db();
     if (sql) {
       const rows = await sql<DocRow[]>`
-        select id, case_label, name, type, updated_label,
-               storage_key, file_name, file_mime, file_size,
-               shared_with_client, requires_acknowledgement, signed_at
-        from documents
-        where firm_id = ${firmId}::uuid
-        order by created_at desc
+        select d.id, d.case_label, d.name, d.type, d.updated_label,
+               d.storage_key, d.file_name, d.file_mime, d.file_size,
+               d.shared_with_client, d.requires_acknowledgement, d.signed_at,
+               u.name as created_by_name, d.parent_document_id, d.parent_draft_id, d.created_at
+        from documents d left join users u on u.id = d.created_by
+        where d.firm_id = ${firmId}::uuid
+        order by d.created_at desc
       `;
       return rows.map(fromRow).map(withFileFlags);
     }
@@ -116,10 +129,12 @@ export const documentsService = {
     const sql = db();
     if (sql) {
       const rows = await sql<DocRow[]>`
-        select id, case_label, name, type, updated_label,
-               storage_key, file_name, file_mime, file_size,
-               shared_with_client, requires_acknowledgement, signed_at
-        from documents where id::text = ${id} and firm_id = ${firmId}::uuid limit 1
+        select d.id, d.case_label, d.name, d.type, d.updated_label,
+               d.storage_key, d.file_name, d.file_mime, d.file_size,
+               d.shared_with_client, d.requires_acknowledgement, d.signed_at,
+               u.name as created_by_name, d.parent_document_id, d.parent_draft_id, d.created_at
+        from documents d left join users u on u.id = d.created_by
+        where d.id::text = ${id} and d.firm_id = ${firmId}::uuid limit 1
       `;
       const row = rows[0];
       return row ? withFileFull(fromRow(row)) : undefined;
@@ -136,8 +151,10 @@ export const documentsService = {
     if (sql) {
       const rows = await sql<DocRow[]>`
         insert into documents (firm_id, case_label, name, type, updated_label,
+                               created_by, parent_document_id, parent_draft_id,
                                storage_key, file_name, file_mime, file_size)
         values (${firmId}::uuid, ${input.case}, ${input.name}, ${input.type}, ${input.updated},
+                ${input.createdBy ?? null}::uuid, ${input.parentDocumentId ?? null}::uuid, ${input.parentDraftId ?? null}::uuid,
                 ${input.storageKey ?? null}, ${input.fileName ?? null},
                 ${input.fileMime ?? null}, ${input.fileSize ?? null})
         returning id, case_label, name, type, updated_label,

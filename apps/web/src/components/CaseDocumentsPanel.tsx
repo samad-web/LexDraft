@@ -1,3 +1,5 @@
+import { useFirmWorking, workingLine } from '@/hooks/usePresence';
+import { makerLine, nestDocuments } from '@/lib/doc-tree';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, EmptyState } from '@lexdraft/ui';
@@ -101,6 +103,9 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
     () => (filter === 'all' ? forMatter : forMatter.filter((d) => bucketOf(d) === filter)),
     [forMatter, filter],
   );
+  // team-docs: copies right under their original, with who made them.
+  const rows = useMemo(() => nestDocuments(visible), [visible]);
+  const working = useFirmWorking();
 
   // Only stored files can be sent (a draft with no file has nothing to attach).
   const shareable = useMemo(() => visible.filter((d) => d.id && d.hasFile), [visible]);
@@ -213,13 +218,13 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
             }
           />
         )}
-        {!isLoading && visible.map((doc, i) => {
+        {!isLoading && rows.map(({ doc, depth }, i) => {
           // An uploaded document with no stored file is an empty shell — the row
           // exists but the engine/viewer have nothing to open. Flag it so the
           // advocate can tell at a glance which files need re-uploading.
           const fileMissing = doc.kind !== 'draft' && !doc.hasFile;
           return (
-          <div key={doc.id ?? `${doc.name}-${i}`} className="cs-doc">
+          <div key={doc.id ?? `${doc.name}-${i}`} className="cs-doc" style={depth ? { paddingLeft: depth * 24 } : undefined}>
             {doc.id && doc.hasFile ? (
               <input
                 type="checkbox"
@@ -232,14 +237,17 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
               <span aria-hidden="true" style={{ width: 16, flex: 'none' }} />
             )}
             <button type="button" className="cs-doc-open" onClick={() => setViewing(doc)}>
+              {depth > 0 && <span aria-hidden style={{ color: 'var(--text-tertiary)' }}>↳</span>}
               <span className="cs-line-icon" aria-hidden="true">
                 <Icon name={doc.kind === 'draft' ? 'draft' : 'documents'} size={15} />
               </span>
               <span style={{ minWidth: 0, flex: 1 }}>
                 <span className="cs-doc-name" style={{ display: 'block' }}>{doc.name}</span>
                 <span className="cs-doc-meta" style={{ display: 'block' }}>
-                  {doc.type || (doc.kind === 'draft' ? 'Draft' : 'Document')}
-                  {doc.fileName ? ` · ${doc.fileName}` : ''}
+                  {[makerLine(doc, depth > 0), doc.type || (doc.kind === 'draft' ? 'Draft' : 'Document'), doc.fileName].filter(Boolean).join(' · ')}
+                  {doc.id && workingLine(working, [`doc:${doc.id}`, `draft:${doc.id}`]) && (
+                    <strong style={{ display: 'block' }}>● {workingLine(working, [`doc:${doc.id}`, `draft:${doc.id}`])}</strong>
+                  )}
                 </span>
               </span>
             </button>

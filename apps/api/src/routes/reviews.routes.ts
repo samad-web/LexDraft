@@ -7,6 +7,7 @@ import { requireFeature } from '../services/permissions.service';
 import { firmIdForUser } from '../services/tenant';
 import { ImportError } from '../services/imported-documents.service';
 import { MAX_SNAPSHOT_BYTES, reviewsService } from '../services/reviews.service';
+import { nameOf } from '../services/presence.service';
 
 export const reviewsRouter: Router = Router();
 
@@ -20,6 +21,17 @@ const FromDocument = z.object({ documentId: z.string().uuid() });
 const FromDocuments = z.object({ documentIds: z.array(z.string().uuid()).min(1).max(20) });
 const Blank = z.object({ blank: z.literal(true), matter: z.string().max(300).default('') });
 const SaveBody = z.object({ marks: z.unknown().optional(), notes: z.unknown().optional() });
+const SendBody = z.object({
+  userIds: z.array(z.string().uuid()).min(1).max(20),
+  message: z.string().max(300).optional(),
+  due: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+const NoteWork = z.object({ done: z.boolean().optional(), reply: z.string().max(500).optional() });
+
+async function namedCtx(req: { user?: { id: string } }) {
+  const c = await ctxOf(req);
+  return { ...c, name: await nameOf(c.userId) };
+}
 
 async function ctxOf(req: { user?: { id: string } }) {
   const userId = req.user!.id;
@@ -86,6 +98,19 @@ reviewsRouter.post('/:id/export', requireFeature('drafting.basic'), async (req, 
 reviewsRouter.post('/:id/pages', requireFeature('drafting.basic'), async (req, res, next) => {
   try {
     res.json(await reviewsService.addPage(String(req.params.id), await ctxOf(req)));
+  } catch (err) { fail(err, res, next); }
+});
+
+// team-docs: send to teammates (tasks + notifications); tick notes Done / reply.
+reviewsRouter.post('/:id/send', requireFeature('drafting.basic'), async (req, res, next) => {
+  try {
+    res.json(await reviewsService.send(String(req.params.id), SendBody.parse(req.body), await namedCtx(req)));
+  } catch (err) { fail(err, res, next); }
+});
+
+reviewsRouter.post('/:id/notes/:noteId', requireFeature('shared.documents'), async (req, res, next) => {
+  try {
+    res.json(await reviewsService.workOnNote(String(req.params.id), String(req.params.noteId).slice(0, 40), NoteWork.parse(req.body), await namedCtx(req)));
   } catch (err) { fail(err, res, next); }
 });
 

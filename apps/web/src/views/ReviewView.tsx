@@ -1,3 +1,6 @@
+import { NoteWork } from '@/components/review/NoteWork';
+import { SendToTeammate } from '@/components/review/SendToTeammate';
+import { useWorkingOn, workingLine } from '@/hooks/usePresence';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -17,9 +20,9 @@ import { reviewErrorText } from '@/lib/review-copy';
 GlobalWorkerOptions.workerSrc = workerUrl;
 
 interface Review {
-  id: string; title: string; source: 'draft' | 'document'; case: string; draftId: string | null;
+  id: string; title: string; source: 'draft' | 'document'; case: string; draftId: string | null; sourceDocumentId: string | null;
   pageCount: number; marks: ReviewState['marks']; notes: ReviewNote[]; resultDocumentId: string | null;
-  canEdit: boolean; draftChanged: boolean; createdAt: string;
+  canEdit: boolean; draftChanged: boolean; createdAt: string; authorName: string | null; sentCount: number;
 }
 
 const TOOLS = [
@@ -56,6 +59,22 @@ export function ReviewView() {
   const [status, setStatus] = useState<'saved' | 'saving' | 'unsaved' | 'failed'>('saved');
   const [exporting, setExporting] = useState(false);
   const [openNote, setOpenNote] = useState<string | null>(null);
+  const [sendOpen, setSendOpen] = useState(false);
+  // team-docs: ticks and replies come from the server (anyone can add them);
+  // merge them into the notes on screen without touching the marker's own edits.
+  const mergeWork = useCallback((serverNotes: ReviewNote[]) => {
+    const byId = new Map(serverNotes.map((n) => [n.id, n]));
+    setHistory((h) => {
+      if (!h) return h;
+      const notes = h.present.notes.map((n) => {
+        const s = byId.get(n.id);
+        return s ? { ...n, done: s.done ?? null, replies: s.replies ?? [] } : n;
+      });
+      const present = { ...h.present, notes };
+      lastSaved.current = JSON.stringify(present);
+      return { ...h, present };
+    });
+  }, []);
   // iPhone and iPad portrait: notes slide up over the pages instead of a column.
   const [narrow, setNarrow] = useState(() => window.innerWidth < 900);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -67,6 +86,9 @@ export function ReviewView() {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const lastSaved = useRef<string>('');
+  // team-docs: tell the team this review (and its original) is being worked on.
+  const workingTargets = review ? [`review:${review.id}`, review.sourceDocumentId ? `doc:${review.sourceDocumentId}` : '', review.draftId ? `draft:${review.draftId}` : ''].filter(Boolean) : null;
+  const othersHere = useWorkingOn(review?.canEdit ? workingTargets : (review ? [`review:${review.id}`] : null));
   // Bumped after "Add page" so the pages are loaded again.
   const [pdfRev, setPdfRev] = useState(0);
   const [addingPage, setAddingPage] = useState(false);
@@ -92,6 +114,22 @@ export function ReviewView() {
     })();
     return () => { cancelled = true; };
   }, [id, pdfRev]);
+
+  // Full-screen: the app's own bars and rails step aside, and dialogs (layer 50)
+  // still open on top of this screen (layer 48), dropdowns in them too.
+  useEffect(() => {
+    document.documentElement.classList.add('has-fullscreen');
+    return () => document.documentElement.classList.remove('has-fullscreen');
+  }, []);
+
+  // team-docs: see teammates' ticks and replies as they come in.
+  useEffect(() => {
+    if (!review) return;
+    const t = setInterval(() => {
+      api.get<Review>(`/reviews/${id}`).then((r) => mergeWork(r.notes)).catch(() => undefined);
+    }, 30_000);
+    return () => clearInterval(t);
+  }, [review?.id, id, mergeWork]);
 
   // Page width follows the reading area.
   useEffect(() => {
@@ -214,15 +252,21 @@ export function ReviewView() {
 
   const edit = review.canEdit;
   return (
-    <div className="rv" style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+    <div className="rv" style={{ position: 'fixed', inset: 0, zIndex: 48, background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <header className="row" style={{ gap: 10, padding: '10px 16px', borderBottom: '1px solid var(--border-default)', flexWrap: 'wrap', alignItems: 'center' }}>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => navigate(-1)} aria-label="Back"><Icon name="chevron" size={13} style={{ transform: 'rotate(180deg)' }} /> Back</button>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{review.title}</div>
           <div className="muted" style={{ fontSize: 12 }}>
-            Review copy · {review.case !== '-' ? review.case : 'No case'} · {edit ? { saved: 'All marks saved', saving: 'Saving…', unsaved: 'Saving soon…', failed: 'Not saved, retrying' }[status] : 'View only (made by a teammate)'}
+            Review copy · {review.case !== '-' ? review.case : 'No case'}{review.authorName ? ` · Marked by ${review.authorName}` : ''} · {edit ? { saved: 'All marks saved', saving: 'Saving…', unsaved: 'Saving soon…', failed: 'Not saved, retrying' }[status] : 'View only (made by a teammate)'}
+            {workingLine(othersHere, [`review:${review.id}`]) && <> · <strong>{workingLine(othersHere, [`review:${review.id}`])}</strong></>}
           </div>
         </div>
+        {edit && (
+          <button type="button" className="btn btn-sm" onClick={() => setSendOpen(true)} title="Give it to a teammate to work on: a task + a notification">
+            Send to teammate
+          </button>
+        )}
         {narrow && (
           <button type="button" className="btn btn-sm" onClick={() => setNotesOpen((o) => !o)} aria-expanded={notesOpen}>
             Notes ({numbered.length})
@@ -353,6 +397,7 @@ export function ReviewView() {
               ) : (
                 <p style={{ margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>{n.text}</p>
               )}
+              {n.text.trim() && <NoteWork reviewId={review.id} note={n} onChanged={mergeWork} />}
               {edit && review.source === 'draft' && review.draftId && n.text.trim().length >= 3 && (
                 <button type="button" className="btn btn-sm" style={{ marginTop: 6 }} onClick={() => void sendToRedraft(n)}
                   title="Opens the draft and runs Redraft on this paragraph with your note (uses credits like any Redraft; exact edits stay free)">
@@ -363,6 +408,7 @@ export function ReviewView() {
           ))}
         </aside>
       </div>
+      {edit && <SendToTeammate open={sendOpen} onClose={() => setSendOpen(false)} reviewId={review.id} />}
     </div>
   );
 }

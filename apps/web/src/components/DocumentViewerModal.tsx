@@ -228,7 +228,7 @@ ${text}`);
       onClose={onClose}
       title={doc?.name ?? ''}
       eyebrow={doc?.type?.toUpperCase()}
-      description={doc?.case && doc.case !== '-' ? doc.case : undefined}
+      description={[doc?.case && doc.case !== '-' ? doc.case : '', (data?.createdByName ?? doc?.createdByName) ? `by ${data?.createdByName ?? doc?.createdByName}` : ''].filter(Boolean).join(' · ') || undefined}
       width={920}
       footer={
         <>
