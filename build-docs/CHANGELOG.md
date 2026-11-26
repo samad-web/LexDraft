@@ -1,5 +1,5 @@
 # Changelog
-- Team documents (2026-11-26, owner): who made each document is shown; copies sit under their original; "X is working on this now" on documents and case notes; Send to teammate (task + notification) with Done ticks and replies, tasks closed and the marker told when all are done. Migration 0125 (local only). features/team-docs.md. Not deployed.
+- Team documents (2026-11-26, owner): who made each document is shown; copies sit under their original; "X is working on this now" on documents and case notes; Send to teammate (task + notification) with Done ticks and replies, tasks closed and the marker told when all are done. Migration 0125. features/team-docs.md. **LIVE 2026-11-26** (7d83211; 0125 applied on prod, backup pre-0125-20261126-063145.dump, rollback tags prev-20261126-063145).
 
 - DEPLOYED 2026-11-25 08:27 UTC (96b10e9, web only; main): images upload again (HEIC on computers, big photos scaled). Rollback lexdraft-web:prev-20261125-082605.
 

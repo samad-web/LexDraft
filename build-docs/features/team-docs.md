@@ -1,6 +1,6 @@
 # Team documents: who made it, who is on it, copies under the original, send to a teammate (team-docs)
 
-**Status:** BUILT 2026-11-26 (owner "yes" to the plan with all recommendations). Not deployed; migration 0125 local only.
+**Status:** BUILT 2026-11-26 (owner "yes" to the plan with all recommendations). LIVE 2026-11-26 (7d83211, migration 0125 applied on prod).
 
 ## Owner asks (2026-11-25 / 26)
 - "Shareable inside the team, and who had done it; the marked document should get worked on."
